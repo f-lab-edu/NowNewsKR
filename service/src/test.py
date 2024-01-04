@@ -1,5 +1,5 @@
 import unittest
-from unittest import TestCase
+from unittest import TestCase , main
 from crawler import NaverStockNewsCrawler  
 
 class TestNaverStockNewsCrawler(TestCase):
@@ -19,4 +19,4 @@ class TestNaverStockNewsCrawler(TestCase):
         
 
 if __name__ == '__main__':
-    unittest.main()
+    main()
