@@ -1,9 +1,10 @@
-from enum import Enum
+import sys
 import os
 import re
+from enum import Enum
 from typing import Dict, Tuple
 from urllib.parse import urlparse, parse_qs
-
+import logging
 
 import requests
 from bs4 import BeautifulSoup
@@ -12,11 +13,27 @@ from supabase import create_client, Client
 
 load_dotenv()
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
-SUPABASE_TABLE = os.environ.get("SUPABASE_TABLE")
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+def load_env_variables():
+    supabase_url = os.environ.get("SUPABASE_URL")
+    supabase_key = os.environ.get("SUPABASE_KEY")
+    supabase_table = os.environ.get("SUPABASE_TABLE")
+
+    if not all([supabase_url, supabase_key, supabase_table]):
+        logging.error("Please set SUPABASE_URL, SUPABASE_KEY, SUPABASE_TABLE")
+        sys.exit(1)
+
+    return supabase_url, supabase_key, supabase_table
+
+
+SUPABASE_URL, SUPABASE_KEY, SUPABASE_TABLE = load_env_variables()
+
+
+try:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+except Exception as e:
+    logging.error("An error occurred while connecting to Supabase: %s", e)
+    sys.exit(1)
 
 
 class Config:
@@ -28,7 +45,7 @@ class Config:
 class Topic(Enum):
     STOCK = "증권"
 
-    # TODO: Add more topics
+    # TODO : Add more topics
     # SPORTRS = "스포츠"
     # ENTERTAINMENT = "연예"
     # ECONOMY = "경제"
@@ -80,8 +97,11 @@ class NaverStockNewsCrawler:
             date_time = date_element["data-date-time"]
 
             return content, journalist, date_time, True
+        except requests.RequestException as e:
+            logging.error("Request failed: %s", e)
+            return "", "", False
         except Exception as e:
-            print(e)
+            logging.error("Failed to parse HTML: %s", e)
             return "", "", False
 
     def crawl(self) -> None:
@@ -125,30 +145,36 @@ class NaverStockNewsCrawler:
 
 
 def save_news_to_supabase(news_item: Dict[str, str]) -> None:
-    # 중복 체크
-    existing_record = (
-        supabase.table(SUPABASE_TABLE).select("*").eq("url", news_item["url"]).execute()
-    )
+    try:
+        existing_record = (
+            supabase.table(SUPABASE_TABLE)
+            .select("*")
+            .eq("url", news_item["url"])
+            .execute()
+        )
 
-    # 해당 URL이 이미 존재하는 경우, 업데이트하거나 무시
-    if existing_record.data:
-        # 업데이트 또는 기타 처리
-        pass
-    else:
-        # 새 레코드 삽입
-        supabase.table(SUPABASE_TABLE).insert(news_item).execute()
+        if not existing_record.data:
+            # 새 레코드 삽입
+            response = supabase.table(SUPABASE_TABLE).insert(news_item).execute()
+            if response.error:
+                print(f"Error saving data: {response.error.message}")
+    except Exception as e:
+        print("An error occurred while saving to Supabase: %s", e)
 
 
 def main() -> None:
-    # stock
-    for topic in Topic:
-        if topic == Topic.STOCK:
-            crawler = NaverStockNewsCrawler(topic, Config.STOCK_URL)
+    try:
+        # stock
+        for topic in Topic:
+            if topic == Topic.STOCK:
+                crawler = NaverStockNewsCrawler(topic, Config.STOCK_URL)
 
-        else:
-            # Placeholder for adding more topics
-            continue
-        crawler.crawl()
+            else:
+                # TODO : adding more topics
+                continue
+            crawler.crawl()
+    except Exception as e:
+        logging.error("An error occurred in main func: %s", e)
 
 
 if __name__ == "__main__":
