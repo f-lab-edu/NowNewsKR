@@ -1,10 +1,11 @@
 import sys
 import os
 import re
+import logging
 from enum import Enum
 from typing import Dict, Tuple
 from urllib.parse import urlparse, parse_qs
-import logging
+
 
 import requests
 from bs4 import BeautifulSoup
