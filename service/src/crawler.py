@@ -1,86 +1,122 @@
+import os
 import json
-from flask import Flask 
+import re
+from typing import Dict, Tuple
+from urllib.parse import urlparse, parse_qs
+
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse, parse_qs
-import os
+
+
+class Config:
+    URL = "https://finance.naver.com/news/mainnews.nhn"
+    FILE_PATH = "news_data.json"
+    ENCODING = "utf-8"
+
+
+class StringUtils:
+    @staticmethod
+    def refine_raw_text(input_text: str) -> str:
+        text = input_text.strip()
+        text = re.sub(r"[^\w\s가-힣]", "", text)
+        return text
+
 
 class NaverStockNewsCrawler:
-    def __init__(self, url="https://finance.naver.com/news/mainnews.nhn"):
+    def __init__(self, url: str = Config.URL) -> None:
         self.url = url
-        self.topic = '증권'
+        self.topic = "증권"
 
-    def make_news_link(self, href_link):        
+    def make_news_link(self, href_link: str) -> str:
         parsed_url = urlparse(href_link)
         query_params = parse_qs(parsed_url.query)
-        office_id = query_params.get('office_id', [None])[0]
-        article_id = query_params.get('article_id', [None])[0]
+        office_id = query_params.get("office_id", [None])[0]
+        article_id = query_params.get("article_id", [None])[0]
 
-        return f'https://n.news.naver.com/mnews/article/{office_id}/{article_id}'       
-    
-    def get_news_content_and_journalist(self, link):
-        response = requests.get(link)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        article = soup.find('article', {'id': 'dic_area'})
-        content = article.text.strip()  
+        return f"https://n.news.naver.com/mnews/article/{office_id}/{article_id}"
 
-        journalist_tag = soup.select_one('.media_end_head_journalist_name')
-        if journalist_tag:
-            journalist = journalist_tag.text.strip()
-        else:
-            journalist = '기자명 없음'
-        return content , journalist
+    def get_news_content_and_journalist(self, link: str) -> Tuple[str, str, bool]:
+        try:
+            response = requests.get(link)
+            soup = BeautifulSoup(response.text, "html.parser")
+            article = soup.find("article", {"id": "dic_area"})
+            content = StringUtils.refine_raw_text(article.text)
 
-    def crawl(self):
+            journalist_tag = soup.select_one(".media_end_head_journalist_name")
+            journalist = (
+                StringUtils.refine_raw_text(journalist_tag.text)
+                if journalist_tag
+                else "기자명 없음"
+            )
+            return content, journalist, True
+        except Exception as e:
+            print(e)
+            return "", "", False
+
+    def crawl(self) -> list[Dict[str, str]]:
         response = requests.get(self.url)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        news_list = soup.select('.mainNewsList li')
+        soup = BeautifulSoup(response.text, "html.parser")
+        news_list = soup.select(".mainNewsList li")
 
         news_data = []
         for news in news_list:
-        
-            title_tag = news.select_one('.articleSubject a')
-            summary_tag = news.select_one('.articleSummary')
+            title_tag = news.select_one(".articleSubject a")
+            summary_tag = news.select_one(".articleSummary")
 
             if title_tag and summary_tag:
-                title = title_tag.text.strip()
-                link = self.make_news_link(title_tag['href'])
-                content , journalist = self.get_news_content_and_journalist(link)
+                title = StringUtils.refine_raw_text(title_tag.text)
+                link = self.make_news_link(title_tag["href"])
+                (
+                    content,
+                    journalist,
+                    crawling_status,
+                ) = self.get_news_content_and_journalist(link)
 
-                summary = summary_tag.text.strip().split('\n')[0]
-                press_text = summary_tag.select_one('.press').text.strip()
-                date_text = summary_tag.select_one('.wdate').text.strip()
+                summary = StringUtils.refine_raw_text(summary_tag.text).split("\n")[0]
+                press_text = StringUtils.refine_raw_text(
+                    summary_tag.select_one(".press").text
+                )
+                date_text = StringUtils.refine_raw_text(
+                    summary_tag.select_one(".wdate").text
+                )
 
-                news_data.append({'topic': self.topic, 'title': title, 'link': link, 'content': content, 'summary': summary, 'press': press_text, 'journalist': journalist, 'date': date_text })
-            
+                news_data.append(
+                    {
+                        "topic": self.topic,
+                        "title": title,
+                        "link": link,
+                        "status": crawling_status,
+                        "content": content,
+                        "summary": summary,
+                        "press": press_text,
+                        "journalist": journalist,
+                        "date": date_text,
+                    }
+                )
+
         return news_data
 
-def save_news_data(file_path, new_data):
 
+def save_news_data(file_path: str, new_data: list[Dict[str, str]]) -> str:
     if os.path.exists(file_path):
-        with open(file_path, 'r', encoding='utf-8') as file:
+        with open(file_path, "r", encoding="utf-8") as file:
             data = json.load(file)
         data.extend(new_data)
     else:
         data = new_data
 
-    with open(file_path, 'w', encoding='utf-8') as file:
+    with open(file_path, "w", encoding=Config.ENCODING) as file:
         json.dump(data, file, ensure_ascii=False, indent=4)
-    return json.dumps(data, ensure_ascii=False,indent=4)
+    return json.dumps(data, ensure_ascii=False, indent=4)
 
 
-app = Flask(__name__)
-
-@app.route('/news')
-def run():
-
+def main() -> None:
     # stock
     stock_crawler = NaverStockNewsCrawler()
     stock_data = stock_crawler.crawl()
-    news_data = save_news_data('news_data.json', stock_data)
-    return news_data
+    r = save_news_data(Config.FILE_PATH, stock_data)
+    print(r)
 
 
-if __name__ == '__main__':
-    app.run(debug=True)
-    
+if __name__ == "__main__":
+    main()
