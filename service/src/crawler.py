@@ -1,7 +1,7 @@
 from enum import Enum
 import os
-import json
 import re
+import json
 from typing import Dict, Tuple
 from urllib.parse import urlparse, parse_qs
 
@@ -10,20 +10,22 @@ from bs4 import BeautifulSoup
 
 
 class Config:
-    URL = "https://finance.naver.com/news/mainnews.nhn"
+    STOCK_URL = "https://finance.naver.com/news/mainnews.nhn"
     FILE_PATH = "news_data.json"
     ENCODING = "utf-8"
 
 
 class Topic(Enum):
     STOCK = "증권"
-    SPORTRS = "스포츠"
-    ENTERTAINMENT = "연예"
-    ECONOMY = "경제"
-    SOCIETY = "사회"
-    LIFE = "생활/문화"
-    WORLD = "세계"
-    IT = "IT/과학"
+
+    # TODO: Add more topics
+    # SPORTRS = "스포츠"
+    # ENTERTAINMENT = "연예"
+    # ECONOMY = "경제"
+    # SOCIETY = "사회"
+    # LIFE = "생활/문화"
+    # WORLD = "세계"
+    # IT = "IT/과학"
 
 
 class StringUtils:
@@ -35,9 +37,9 @@ class StringUtils:
 
 
 class NaverStockNewsCrawler:
-    def __init__(self, url: str = Config.URL) -> None:
+    def __init__(self, topic: Topic, url: str) -> None:
         self.url = url
-        self.topic = Topic.STOCK.value
+        self.topic = topic.value
 
     def make_news_link(self, href_link: str) -> str:
         parsed_url = urlparse(href_link)
@@ -129,10 +131,16 @@ def save_news_data(file_path: str, new_data: list[Dict[str, str]]) -> str:
 
 def main() -> None:
     # stock
-    stock_crawler = NaverStockNewsCrawler()
-    stock_data = stock_crawler.crawl()
-    r = save_news_data(Config.FILE_PATH, stock_data)
-    print(r)
+    for topic in Topic:
+        if topic == Topic.STOCK:
+            crawler = NaverStockNewsCrawler(topic, Config.STOCK_URL)
+
+        else:
+            # Placeholder for adding more topics
+            continue
+        news_data = crawler.crawl()
+        r = save_news_data(Config.FILE_PATH, news_data)
+        print(r)
 
 
 if __name__ == "__main__":
