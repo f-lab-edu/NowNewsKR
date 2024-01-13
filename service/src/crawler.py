@@ -60,7 +60,14 @@ class NaverStockNewsCrawler:
                 if journalist_tag
                 else ""
             )
-            return content, journalist, True
+
+            date_element = soup.find(
+                "span",
+                class_="media_end_head_info_datestamp_time _ARTICLE_DATE_TIME",
+            )
+            date_time = date_element["data-date-time"]
+
+            return content, journalist, date_time, True
         except Exception as e:
             print(e)
             return "", "", False
@@ -81,15 +88,13 @@ class NaverStockNewsCrawler:
                 (
                     content,
                     journalist,
+                    date_time,
                     crawling_status,
                 ) = self.get_news_content_and_journalist(news_url)
 
                 summary = StringUtils.refine_raw_text(summary_tag.text).split("\n")[0]
                 press_text = StringUtils.refine_raw_text(
                     summary_tag.select_one(".press").text
-                )
-                date_text = StringUtils.refine_raw_text(
-                    summary_tag.select_one(".wdate").text
                 )
 
                 news_data.append(
@@ -102,7 +107,7 @@ class NaverStockNewsCrawler:
                         "summary": summary,
                         "press": press_text,
                         "journalist": journalist,
-                        "date": date_text,
+                        "date": date_time,
                     }
                 )
 
