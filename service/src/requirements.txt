@@ -1,5 +1,5 @@
-# python=3.11
-flask=3.0.0
-requests=2.31.0
-bs4=0.0.1
+# python==3.11
+flask==3.0.0
+requests==2.31.0
+bs4==0.0.1
 
