@@ -1,12 +1,22 @@
 from enum import Enum
 import os
 import re
-import json
 from typing import Dict, Tuple
 from urllib.parse import urlparse, parse_qs
 
+
 import requests
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+from supabase import create_client, Client
+
+load_dotenv()
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+SUPABASE_TABLE = os.environ.get("SUPABASE_TABLE")
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 class Config:
@@ -74,12 +84,11 @@ class NaverStockNewsCrawler:
             print(e)
             return "", "", False
 
-    def crawl(self) -> list[Dict[str, str]]:
+    def crawl(self) -> None:
         response = requests.get(self.url)
         soup = BeautifulSoup(response.text, "html.parser")
         news_list = soup.select(".mainNewsList li")
 
-        news_data = []
         for news in news_list:
             title_tag = news.select_one(".articleSubject a")
             summary_tag = news.select_one(".articleSummary")
@@ -99,34 +108,35 @@ class NaverStockNewsCrawler:
                     summary_tag.select_one(".press").text
                 )
 
-                news_data.append(
-                    {
-                        "topic": self.topic,
-                        "title": title,
-                        "url": news_url,
-                        "status": crawling_status,
-                        "content": content,
-                        "summary": summary,
-                        "press": press_text,
-                        "journalist": journalist,
-                        "date": date_time,
-                    }
-                )
+                news_item = {
+                    "topic": self.topic,
+                    "title": title,
+                    "url": news_url,
+                    "status": crawling_status,
+                    "content": content,
+                    "summary": summary,
+                    "press": press_text,
+                    "journalist": journalist,
+                    "date": date_time,
+                }
 
-        return news_data
+                # Save each news to Supabase immediately after crawling
+                save_news_to_supabase(news_item)
 
 
-def save_news_data(file_path: str, new_data: list[Dict[str, str]]) -> str:
-    if os.path.exists(file_path):
-        with open(file_path, "r", encoding="utf-8") as file:
-            data = json.load(file)
-        data.extend(new_data)
+def save_news_to_supabase(news_item: Dict[str, str]) -> None:
+    # 중복 체크
+    existing_record = (
+        supabase.table(SUPABASE_TABLE).select("*").eq("url", news_item["url"]).execute()
+    )
+
+    # 해당 URL이 이미 존재하는 경우, 업데이트하거나 무시
+    if existing_record.data:
+        # 업데이트 또는 기타 처리
+        pass
     else:
-        data = new_data
-
-    with open(file_path, "w", encoding=Config.ENCODING) as file:
-        json.dump(data, file, ensure_ascii=False, indent=4)
-    return json.dumps(data, ensure_ascii=False, indent=4)
+        # 새 레코드 삽입
+        supabase.table(SUPABASE_TABLE).insert(news_item).execute()
 
 
 def main() -> None:
@@ -138,9 +148,7 @@ def main() -> None:
         else:
             # Placeholder for adding more topics
             continue
-        news_data = crawler.crawl()
-        r = save_news_data(Config.FILE_PATH, news_data)
-        print(r)
+        crawler.crawl()
 
 
 if __name__ == "__main__":
