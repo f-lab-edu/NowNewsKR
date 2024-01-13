@@ -1,3 +1,4 @@
+from enum import Enum
 import os
 import json
 import re
@@ -14,6 +15,17 @@ class Config:
     ENCODING = "utf-8"
 
 
+class Topic(Enum):
+    STOCK = "증권"
+    SPORTRS = "스포츠"
+    ENTERTAINMENT = "연예"
+    ECONOMY = "경제"
+    SOCIETY = "사회"
+    LIFE = "생활/문화"
+    WORLD = "세계"
+    IT = "IT/과학"
+
+
 class StringUtils:
     @staticmethod
     def refine_raw_text(input_text: str) -> str:
@@ -25,7 +37,7 @@ class StringUtils:
 class NaverStockNewsCrawler:
     def __init__(self, url: str = Config.URL) -> None:
         self.url = url
-        self.topic = "증권"
+        self.topic = Topic.STOCK.value
 
     def make_news_link(self, href_link: str) -> str:
         parsed_url = urlparse(href_link)
@@ -46,7 +58,7 @@ class NaverStockNewsCrawler:
             journalist = (
                 StringUtils.refine_raw_text(journalist_tag.text)
                 if journalist_tag
-                else "기자명 없음"
+                else ""
             )
             return content, journalist, True
         except Exception as e:
@@ -65,12 +77,12 @@ class NaverStockNewsCrawler:
 
             if title_tag and summary_tag:
                 title = StringUtils.refine_raw_text(title_tag.text)
-                link = self.make_news_link(title_tag["href"])
+                news_url = self.make_news_link(title_tag["href"])
                 (
                     content,
                     journalist,
                     crawling_status,
-                ) = self.get_news_content_and_journalist(link)
+                ) = self.get_news_content_and_journalist(news_url)
 
                 summary = StringUtils.refine_raw_text(summary_tag.text).split("\n")[0]
                 press_text = StringUtils.refine_raw_text(
@@ -84,7 +96,7 @@ class NaverStockNewsCrawler:
                     {
                         "topic": self.topic,
                         "title": title,
-                        "link": link,
+                        "url": news_url,
                         "status": crawling_status,
                         "content": content,
                         "summary": summary,
