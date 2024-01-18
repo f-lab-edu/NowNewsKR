@@ -1,7 +1,6 @@
 import os
 import sys
 import logging
-
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
@@ -34,17 +33,18 @@ class SupabaseHandler:
 
         return supabase_url, supabase_key, supabase_table
 
-    def save_news_to_supabase(self, news_item):
+    def save_news_to_supabase(self, news_document):
         try:
             existing_record = (
                 self.client.table(self.supabase_table)
                 .select("*")
-                .eq("url", news_item["url"])
+                .eq("url", news_document.url)
                 .execute()
             )
 
             if not existing_record.data:
                 # 새 레코드 삽입
+                news_item = news_document.to_superbase_format()
                 response = (
                     self.client.table(self.supabase_table).insert(news_item).execute()
                 )
