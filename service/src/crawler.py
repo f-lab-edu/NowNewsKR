@@ -1,5 +1,6 @@
 import sys
 import os
+
 import re
 import logging
 from enum import Enum
@@ -11,30 +12,7 @@ import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from supabase import create_client, Client
-
-load_dotenv()
-
-
-def load_env_variables():
-    supabase_url = os.environ.get("SUPABASE_URL")
-    supabase_key = os.environ.get("SUPABASE_KEY")
-    supabase_table = os.environ.get("SUPABASE_TABLE")
-
-    if not all([supabase_url, supabase_key, supabase_table]):
-        logging.error("Please set SUPABASE_URL, SUPABASE_KEY, SUPABASE_TABLE")
-        sys.exit(1)
-
-    return supabase_url, supabase_key, supabase_table
-
-
-SUPABASE_URL, SUPABASE_KEY, SUPABASE_TABLE = load_env_variables()
-
-
-try:
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-except Exception as e:
-    logging.error("An error occurred while connecting to Supabase: %s", e)
-    sys.exit(1)
+from supabase_handler import SupabaseHandler
 
 
 class Config:
@@ -64,10 +42,47 @@ class StringUtils:
         return text
 
 
-class NaverStockNewsCrawler:
-    def __init__(self, topic: Topic, url: str) -> None:
+class NewsDocuments:
+    def __init__(
+        self, topic, title, url, status, content, summary, press, journalist, date
+    ):
+        self.topic = topic
+        self.title = title
+        self.url = url
+        self.status = status
+        self.content = content
+        self.summary = summary
+        self.press = press
+        self.journalist = journalist
+        self.date = date
+
+    def __repr__(self):
+        return f"NewsDocuments({self.topic}, {self.title}, {self.url}, {self.status}, {self.content}, {self.summary}, {self.press}, {self.journalist}, {self.date})"
+
+    def to_superbase_format(self):
+        return {
+            "topic": self.topic,
+            "title": self.title,
+            "url": self.url,
+            "status": self.status,
+            "content": self.content,
+            "summary": self.summary,
+            "press": self.press,
+            "journalist": self.journalist,
+            "date": self.date,
+        }
+
+    def to_db(self):
+        return self.to_superbase_format()
+
+
+class NaverNewsCrawler:
+    def __init__(
+        self, topic: Topic, url: str, supabase_handler: SupabaseHandler
+    ) -> None:
         self.url = url
         self.topic = topic.value
+        self.supabase_handler = supabase_handler  # SupabaseHandler 인스턴스를 저장
 
     def make_news_link(self, href_link: str) -> str:
         parsed_url = urlparse(href_link)
@@ -129,38 +144,19 @@ class NaverStockNewsCrawler:
                     summary_tag.select_one(".press").text
                 )
 
-                news_item = {
-                    "topic": self.topic,
-                    "title": title,
-                    "url": news_url,
-                    "status": crawling_status,
-                    "content": content,
-                    "summary": summary,
-                    "press": press_text,
-                    "journalist": journalist,
-                    "date": date_time,
-                }
+                news_item = NewsDocuments(
+                    self.topic,
+                    title,
+                    news_url,
+                    crawling_status,
+                    content,
+                    summary,
+                    press_text,
+                    journalist,
+                    date_time,
+                )
 
-                # Save each news to Supabase immediately after crawling
-                save_news_to_supabase(news_item)
-
-
-def save_news_to_supabase(news_item: Dict[str, str]) -> None:
-    try:
-        existing_record = (
-            supabase.table(SUPABASE_TABLE)
-            .select("*")
-            .eq("url", news_item["url"])
-            .execute()
-        )
-
-        if not existing_record.data:
-            # 새 레코드 삽입
-            response = supabase.table(SUPABASE_TABLE).insert(news_item).execute()
-            if response.error:
-                print(f"Error saving data: {response.error.message}")
-    except Exception as e:
-        print("An error occurred while saving to Supabase: %s", e)
+                self.supabase_handler.save_news_to_supabase(news_item)
 
 
 def main() -> None:
@@ -168,7 +164,9 @@ def main() -> None:
         # stock
         for topic in Topic:
             if topic == Topic.STOCK:
-                crawler = NaverStockNewsCrawler(topic, Config.STOCK_URL)
+                supabase_handler = SupabaseHandler()
+                supabase_handler.superbase_init()
+                crawler = NaverNewsCrawler(topic, Config.STOCK_URL, supabase_handler)
 
             else:
                 # TODO : adding more topics
