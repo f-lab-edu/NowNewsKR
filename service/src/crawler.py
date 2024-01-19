@@ -1,6 +1,3 @@
-import sys
-import os
-
 import re
 import logging
 from enum import Enum
@@ -10,8 +7,7 @@ from urllib.parse import urlparse, parse_qs
 
 import requests
 from bs4 import BeautifulSoup
-from dotenv import load_dotenv
-from supabase import create_client, Client
+
 from supabase_handler import SupabaseHandler
 
 
@@ -44,11 +40,11 @@ class StringUtils:
 
 class NewsDocuments:
     def __init__(
-        self, topic, title, url, status, content, summary, press, journalist, date
+        self, url, topic, title, status, content, summary, press, journalist, date
     ):
+        self.url = url
         self.topic = topic
         self.title = title
-        self.url = url
         self.status = status
         self.content = content
         self.summary = summary
@@ -57,13 +53,13 @@ class NewsDocuments:
         self.date = date
 
     def __repr__(self):
-        return f"NewsDocuments({self.topic}, {self.title}, {self.url}, {self.status}, {self.content}, {self.summary}, {self.press}, {self.journalist}, {self.date})"
+        return f"NewsDocuments({self.url}, {self.topic}, {self.title}, {self.status}, {self.content}, {self.summary}, {self.press}, {self.journalist}, {self.date})"
 
     def to_superbase_format(self):
         return {
+            "url": self.url,
             "topic": self.topic,
             "title": self.title,
-            "url": self.url,
             "status": self.status,
             "content": self.content,
             "summary": self.summary,
@@ -72,9 +68,6 @@ class NewsDocuments:
             "date": self.date,
         }
 
-    def to_db(self):
-        return self.to_superbase_format()
-
 
 class NaverNewsCrawler:
     def __init__(
@@ -82,7 +75,7 @@ class NaverNewsCrawler:
     ) -> None:
         self.url = url
         self.topic = topic.value
-        self.supabase_handler = supabase_handler  # SupabaseHandler 인스턴스를 저장
+        self.supabase_handler = supabase_handler
 
     def make_news_link(self, href_link: str) -> str:
         parsed_url = urlparse(href_link)
@@ -112,13 +105,13 @@ class NaverNewsCrawler:
             )
             date_time = date_element["data-date-time"]
 
-            return content, journalist, date_time, True
+            return content, journalist, date_time, "Success"
         except requests.RequestException as e:
             logging.error("Request failed: %s", e)
-            return "", "", False
+            return "", "", "Failure"
         except Exception as e:
             logging.error("Failed to parse HTML: %s", e)
-            return "", "", False
+            return "", "", "Failure"
 
     def crawl(self) -> None:
         response = requests.get(self.url)
@@ -132,6 +125,12 @@ class NaverNewsCrawler:
             if title_tag and summary_tag:
                 title = StringUtils.refine_raw_text(title_tag.text)
                 news_url = self.make_news_link(title_tag["href"])
+
+                summary = StringUtils.refine_raw_text(summary_tag.text).split("\n")[0]
+                press_text = StringUtils.refine_raw_text(
+                    summary_tag.select_one(".press").text
+                )
+
                 (
                     content,
                     journalist,
@@ -139,15 +138,10 @@ class NaverNewsCrawler:
                     crawling_status,
                 ) = self.get_news_content_and_journalist(news_url)
 
-                summary = StringUtils.refine_raw_text(summary_tag.text).split("\n")[0]
-                press_text = StringUtils.refine_raw_text(
-                    summary_tag.select_one(".press").text
-                )
-
                 news_item = NewsDocuments(
+                    news_url,
                     self.topic,
                     title,
-                    news_url,
                     crawling_status,
                     content,
                     summary,
