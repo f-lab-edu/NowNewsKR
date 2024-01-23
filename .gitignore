@@ -1,3 +1,6 @@
 *.pyc
 *.json
 .env
+*.DS_Store
+*.safetensors
+vocab.txt
