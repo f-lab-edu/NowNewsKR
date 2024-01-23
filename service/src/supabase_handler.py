@@ -20,8 +20,8 @@ class SupabaseHandler:
         ) = self.load_env_variables()
         self.client: Client = create_client(self.supabase_url, self.supabase_key)
 
-    @classmethod
-    def load_env_variables(cls):
+    @staticmethod
+    def load_env_variables():
         load_dotenv()
         supabase_url = os.environ.get("SUPABASE_URL")
         supabase_key = os.environ.get("SUPABASE_KEY")
