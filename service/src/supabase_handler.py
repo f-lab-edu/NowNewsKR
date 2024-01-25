@@ -1,37 +1,34 @@
 import os
 import sys
 import logging
-from dotenv import load_dotenv
+import yaml
+
+# from dotenv import load_dotenv
 from supabase import create_client, Client
 
 
-class SupabaseHandler:
-    def __init__(self):
+class SupabaseConfig:
+    def __init__(self, config_file_path):
+        self.config_file_path = config_file_path
         self.supabase_url = None
         self.supabase_key = None
         self.supabase_table = None
-        self.client = None
+        self.load_config()
 
-    def superbase_init(self):
-        (
-            self.supabase_url,
-            self.supabase_key,
-            self.supabase_table,
-        ) = self.load_env_variables()
+    def load_config(self):
+        with open(self.config_file_path) as f:
+            conf = yaml.load(f, Loader=yaml.FullLoader)
+            self.supabase_url = conf["supabase"]["supabase_url"]
+            self.supabase_key = conf["supabase"]["supabase_key"]
+            self.supabase_table = conf["supabase"]["supabase_table"]
+
+
+class SupabaseHandler:
+    def __init__(self, supabase_config):
+        self.supabase_url = supabase_config.supabase_url
+        self.supabase_key = supabase_config.supabase_key
+        self.supabase_table = supabase_config.supabase_table
         self.client: Client = create_client(self.supabase_url, self.supabase_key)
-
-    @staticmethod
-    def load_env_variables():
-        load_dotenv()
-        supabase_url = os.environ.get("SUPABASE_URL")
-        supabase_key = os.environ.get("SUPABASE_KEY")
-        supabase_table = os.environ.get("SUPABASE_TABLE")
-
-        if not all([supabase_url, supabase_key, supabase_table]):
-            logging.error("Please set SUPABASE_URL, SUPABASE_KEY, SUPABASE_TABLE")
-            sys.exit(1)
-
-        return supabase_url, supabase_key, supabase_table
 
     def save_news_to_supabase(self, news_document):
         news_item = news_document.to_superbase_format()
