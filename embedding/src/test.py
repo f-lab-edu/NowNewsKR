@@ -2,9 +2,7 @@ from embedding_model import EmbeddingModel
 
 
 def main():
-    model_name = "embedding/models/BM-K_KoSimCSE-roberta"
-    # /Users/yunhuicho/Documents/myGit/NowNewsKR/embedding/models/BM-K_KoSimCSE-roberta
-    embedding_model = EmbeddingModel(model_name)
+    embedding_model = EmbeddingModel("./conf.yaml")
 
     # 데이터 색인화 예시
     data = {

@@ -1,44 +1,69 @@
-import os
-import sys
 import torch
-from dotenv import load_dotenv
+import yaml
+import logging
 from elasticsearch import Elasticsearch
 from transformers import AutoModel, AutoTokenizer
 
-# 현재 스크립트의 디렉토리를 가져와 sys.path에 추가
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.join(current_dir, ".."))
-
 
 class EmbeddingModel:
-    def __init__(self, model_name):
-        dotenv_path = "./service/src/.env"  # .env 파일의 실제 경로로 변경해야 합니다.
-        # /Users/yunhuicho/Documents/myGit/NowNewsKR/service/src/.env
-        # .env 파일을 불러옵니다.
-        load_dotenv(dotenv_path)
-        self.model = AutoModel.from_pretrained(model_name)
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.es_username = os.getenv("ES_USERNAME")
-        self.es_password = os.getenv("ES_PASSWORD")
+    def __init__(self, yaml_path):
+        self.config = None
+        self.model = None
+        self.tokenizer = None
+        self.es = None
+        self.load_configuration(yaml_path)
+
+    def load_configuration(self, yaml_path):
+        self.config = self.load_yaml(yaml_path)
+        self.model, self.tokenizer = self.load_model()
+        self.es = self.initialize_elasticsearch()
+
+    @staticmethod
+    def load_yaml(yaml_path):
+        with open(yaml_path, "r") as f:
+            config = yaml.load(f, Loader=yaml.FullLoader)
+        return config
+
+    def load_model(self):
+        model = AutoModel.from_pretrained(self.config["embedding_model"])
+        tokenizer = AutoTokenizer.from_pretrained(self.config["embedding_model"])
+        return model, tokenizer
+
+    def initialize_elasticsearch(self):
+        es_username = self.config["elastic_search"]["es_username"]
+        es_password = self.config["elastic_search"]["es_password"]
         try:
-            self.es = Elasticsearch(
+            es = Elasticsearch(
                 [{"host": "localhost", "port": 9200, "scheme": "https"}],
-                basic_auth=(self.es_username, self.es_password),
+                basic_auth=(es_username, es_password),
                 verify_certs=False,
             )
+            return es
         except Exception as e:
             print(e, "Elasticsearch 연결 실패")
+            return None
 
     def get_embedding_vector(self, text):
-        inputs = self.tokenizer(
-            text, padding=True, truncation=True, return_tensors="pt"
-        )
-        with torch.no_grad():
-            embeddings = self.model(**inputs).pooler_output
-        return embeddings[0]
+        max_length = self.tokenizer.model_max_length
+        print(f"==== max_length : {max_length}  / len(text) : {len(text)}====")
+        try:
+            if len(text) > max_length:
+                logging.warning("Input text is longer than max length of the model.")
+                raise ValueError
+            else:
+                inputs = self.tokenizer(
+                    text, padding=True, truncation=True, return_tensors="pt"
+                )
+                with torch.no_grad():
+                    embeddings = self.model(**inputs).pooler_output
+                return embeddings[0]
+        except ValueError as ve:
+            logging.error(ve)
+            return None
 
     def index_data_to_elasticsearch(self, data):
-        text = data["content"]  # 데이터 필드에 따라 수정 필요
+        # TODO: metadata 까지 인덱싱하도록 수정, 데이터 청크로 나눔 여부 고려
+        text = data["content"]
         embedding_vector = self.get_embedding_vector(text)
         try:
             self.es.index(
@@ -49,6 +74,7 @@ class EmbeddingModel:
             print(e, "데이터 인덱싱 실패")
 
     def search_data_in_elasticsearch(self, user_query):
+        # TODO: search 수정
         query_embedding = self.get_embedding_vector(user_query)
         search_body = {
             "query": {
