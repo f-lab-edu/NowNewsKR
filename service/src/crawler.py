@@ -1,6 +1,5 @@
 import re
 import logging
-from enum import Enum
 from typing import Dict, Tuple
 from urllib.parse import urlparse, parse_qs
 
@@ -8,26 +7,8 @@ from urllib.parse import urlparse, parse_qs
 import requests
 from bs4 import BeautifulSoup
 
-from supabase_handler import SupabaseHandler
-
-
-class Config:
-    STOCK_URL = "https://finance.naver.com/news/mainnews.nhn"
-    FILE_PATH = "news_data.json"
-    ENCODING = "utf-8"
-
-
-class Topic(Enum):
-    STOCK = "증권"
-
-    # TODO : Add more topics
-    # SPORTRS = "스포츠"
-    # ENTERTAINMENT = "연예"
-    # ECONOMY = "경제"
-    # SOCIETY = "사회"
-    # LIFE = "생활/문화"
-    # WORLD = "세계"
-    # IT = "IT/과학"
+from config import Config, Topic, NewsDocuments
+from supabase_handler import SupabaseConfig, SupabaseHandler
 
 
 class StringUtils:
@@ -36,37 +17,6 @@ class StringUtils:
         text = input_text.strip()
         text = re.sub(r"[^\w\s가-힣]", "", text)
         return text
-
-
-class NewsDocuments:
-    def __init__(
-        self, url, topic, title, status, content, summary, press, journalist, date
-    ):
-        self.url = url
-        self.topic = topic
-        self.title = title
-        self.status = status
-        self.content = content
-        self.summary = summary
-        self.press = press
-        self.journalist = journalist
-        self.date = date
-
-    def __repr__(self):
-        return f"NewsDocuments({self.url}, {self.topic}, {self.title}, {self.status}, {self.content}, {self.summary}, {self.press}, {self.journalist}, {self.date})"
-
-    def to_superbase_format(self):
-        return {
-            "url": self.url,
-            "topic": self.topic,
-            "title": self.title,
-            "status": self.status,
-            "content": self.content,
-            "summary": self.summary,
-            "press": self.press,
-            "journalist": self.journalist,
-            "date": self.date,
-        }
 
 
 class NaverNewsCrawler:
@@ -83,7 +33,7 @@ class NaverNewsCrawler:
         office_id = query_params.get("office_id", [None])[0]
         article_id = query_params.get("article_id", [None])[0]
 
-        return f"https://n.news.naver.com/mnews/article/{office_id}/{article_id}"
+        return f"{Config.NEWS_URL}/{office_id}/{article_id}"
 
     def get_news_content_and_journalist(self, link: str) -> Tuple[str, str, bool]:
         try:
@@ -155,11 +105,12 @@ class NaverNewsCrawler:
 
 def main() -> None:
     try:
+        supabase_config = SupabaseConfig(Config.YAML_PATH)
         # stock
         for topic in Topic:
             if topic == Topic.STOCK:
-                supabase_handler = SupabaseHandler()
-                supabase_handler.superbase_init()
+                supabase_handler = SupabaseHandler(supabase_config)
+
                 crawler = NaverNewsCrawler(topic, Config.STOCK_URL, supabase_handler)
 
             else:
