@@ -1,7 +1,4 @@
 *.pyc
-*.json
-.env
-*.DS_Store
-*.safetensors
-vocab.txt
+.DS_Store
+*/models/*
 *.yaml
