@@ -1,8 +1,8 @@
+import logging
 import torch
 import yaml
-import logging
-from transformers import AutoTokenizer, AutoModelForCausalLM
 from accelerate import disk_offload
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
 
 class LLMModule:
@@ -10,10 +10,12 @@ class LLMModule:
         self.config = None
         self.model = None
         self.tokenizer = None
+        self.device = None
         self.load_configuration(yaml_path)
 
     def load_configuration(self, yaml_path):
         self.config = self.load_yaml(yaml_path)
+        self.device = self.load_device()
         self.model, self.tokenizer = self.load_model()
 
     @staticmethod
@@ -22,23 +24,30 @@ class LLMModule:
             config = yaml.load(f, Loader=yaml.FullLoader)
         return config
 
+    def load_device(self):
+        device_map = self.config["device"]["gpu"]
+        device = torch.device(
+            device_map["gpu"] if torch.cuda.is_available() else device_map["cpu"]
+        )
+        return device
+
     def load_model(self):
         # TODO: 모델 로드 및 토크나이저 설정
         """
         model = AutoModelForCausalLM.from_pretrained(
-            self.config["llm_module"], device_map="cuda:0"
+            self.config["llm_path"], device_map=self.device
         )
         model = AutoModelForCausalLM.from_pretrained(
-            self.config["llm_module"], device_map="auto"
+            self.config["llm_path"], device_map=self.device
         )"""
 
         model = AutoModelForCausalLM.from_pretrained(
-            self.config["llm_module"],
+            self.config["llm_path"],
             local_files_only=True,  # Load from local disk only
             use_cache=False,  # Disable caching
             return_dict=True,  # Return the model as a PyTorch dictionary)
         )
-        tokenizer = AutoTokenizer.from_pretrained(self.config["llm_module"])
+        tokenizer = AutoTokenizer.from_pretrained(self.config["llm_path"])
 
         return model, tokenizer
 
@@ -51,7 +60,7 @@ class LLMModule:
             else f"### 질문: {question}\n\n### 답변:"
         )
         inputs = self.tokenizer.encode(input_text, return_tensors="pt").to(
-            device="cuda:0"
+            device=self.device
         )
 
         # 텍스트 생성
@@ -65,4 +74,5 @@ class LLMModule:
 
         # 생성된 텍스트 디코딩
         answer = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-        print(answer)
+
+        logging.info(answer)

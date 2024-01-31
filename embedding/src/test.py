@@ -1,3 +1,4 @@
+import logging
 from embedding_model import EmbeddingModel
 
 
@@ -16,7 +17,7 @@ def main():
 
     # 검색 결과 출력
     for hit in search_results["hits"]["hits"]:
-        print(f"Score: {hit['_score']}, Text: {hit['_source']['text']}")
+        logging.info(f"Score: {hit['_score']}, Text: {hit['_source']['text']}")
 
 
 if __name__ == "__main__":

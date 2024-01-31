@@ -15,7 +15,7 @@ class EmbeddingModel:
 
     def load_configuration(self, yaml_path):
         self.config = self.load_yaml(yaml_path)
-        self.model, self.tokenizer = self.load_model()
+        self.model, self.tokenizer, self.input_max_length = self.load_model()
         self.es = self.initialize_elasticsearch()
 
     @staticmethod
@@ -27,7 +27,8 @@ class EmbeddingModel:
     def load_model(self):
         model = AutoModel.from_pretrained(self.config["embedding_model"])
         tokenizer = AutoTokenizer.from_pretrained(self.config["embedding_model"])
-        return model, tokenizer
+        input_max_length = self.tokenizer.model_max_length
+        return model, tokenizer, input_max_length
 
     def initialize_elasticsearch(self):
         es_username = self.config["elastic_search"]["es_username"]
@@ -40,14 +41,12 @@ class EmbeddingModel:
             )
             return es
         except Exception as e:
-            print(e, "Elasticsearch 연결 실패")
-            return None
+            logging.error("elasticsearch 연결 실패")
+            return False
 
     def get_embedding_vector(self, text):
-        max_length = self.tokenizer.model_max_length
-        print(f"==== max_length : {max_length}  / len(text) : {len(text)}====")
         try:
-            if len(text) > max_length:
+            if len(text) > self.input_max_length:
                 logging.warning("Input text is longer than max length of the model.")
                 raise ValueError
             else:
@@ -59,7 +58,7 @@ class EmbeddingModel:
                 return embeddings[0]
         except ValueError as ve:
             logging.error(ve)
-            return None
+            return False
 
     def index_data_to_elasticsearch(self, data):
         # TODO: metadata 까지 인덱싱하도록 수정, 데이터 청크로 나눔 여부 고려
@@ -71,7 +70,7 @@ class EmbeddingModel:
                 body={"text": text, "embedding": embedding_vector.numpy().tolist()},
             )
         except Exception as e:
-            print(e, "데이터 인덱싱 실패")
+            logging.error("elasticsearch 데이터 인덱싱 실패")
 
     def search_data_in_elasticsearch(self, user_query):
         # TODO: search 수정
@@ -91,5 +90,5 @@ class EmbeddingModel:
             results = self.es.search(index="news", body=search_body)
             return results
         except Exception as e:
-            print(e, "데이터 검색 실패")
-            return None
+            logging.error("elasticsearch 데이터 검색 실패")
+            return False
