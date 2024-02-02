@@ -1,0 +1,19 @@
+supabase:
+  supabase_url: "https://sample_supabase_url.supabase.co"
+  supabase_key: "sample_supabase_key"
+  supabase_table: "NewsHubDB"
+
+elastic_search:
+  es_username: "sample_username"
+  es_password: "sample_password"
+  host: "localhost"
+  port: 9200
+  scheme: "https"
+
+embedding_model: "embedding/models/BM-K_KoSimCSE-roberta"
+llm_path: "llm/models/yiko_model_4bit"
+overlap_ratio: 0.2
+
+device:
+  gpu: cuda:0
+  cpu: cpu
