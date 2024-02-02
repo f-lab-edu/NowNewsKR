@@ -27,12 +27,13 @@ class EmbeddingModel:
     def load_model(self):
         model = AutoModel.from_pretrained(self.config["embedding_model"])
         tokenizer = AutoTokenizer.from_pretrained(self.config["embedding_model"])
-        input_max_length = self.tokenizer.model_max_length
+        input_max_length = tokenizer.model_max_length
         return model, tokenizer, input_max_length
 
     def initialize_elasticsearch(self):
         es_username = self.config["elastic_search"]["es_username"]
         es_password = self.config["elastic_search"]["es_password"]
+
         try:
             es = Elasticsearch(
                 [{"host": "localhost", "port": 9200, "scheme": "https"}],
@@ -41,40 +42,54 @@ class EmbeddingModel:
             )
             return es
         except Exception as e:
-            logging.error("elasticsearch 연결 실패")
+            logging.error(f"elasticsearch 연결 실패,{e}")
             return False
 
+    def chunked_text(self, text):
+        if len(text) > self.input_max_length:
+            logging.info(
+                "Input text is longer than max length of the model. \n start chunking"
+            )
+            return [
+                text[i : i + self.input_max_length]
+                for i in range(0, len(text), self.input_max_length)
+            ]
+        else:
+            return [text]
+
     def get_embedding_vector(self, text):
-        try:
-            if len(text) > self.input_max_length:
-                logging.warning("Input text is longer than max length of the model.")
-                raise ValueError
-            else:
-                inputs = self.tokenizer(
-                    text, padding=True, truncation=True, return_tensors="pt"
-                )
-                with torch.no_grad():
-                    embeddings = self.model(**inputs).pooler_output
-                return embeddings[0]
-        except ValueError as ve:
-            logging.error(ve)
-            return False
+        chunked_texts = self.chunked_text(text)
+        embeddings = []
+        for chunk in chunked_texts:
+            inputs = self.tokenizer(
+                chunk, padding=True, truncation=True, return_tensors="pt"
+            )
+            with torch.no_grad():
+                embedding = self.model(**inputs).pooler_output
+                embeddings.append(embedding)
+
+        result_embedding = torch.mean(torch.stack(embeddings), dim=0)
+        return result_embedding
 
     def index_data_to_elasticsearch(self, data):
         # TODO: metadata 까지 인덱싱하도록 수정, 데이터 청크로 나눔 여부 고려
         text = data["content"]
         embedding_vector = self.get_embedding_vector(text)
+        embedding_list = embedding_vector.numpy()[0].tolist()
+        print(self.es)
+        print(embedding_list)
         try:
             self.es.index(
                 index="news",
-                body={"text": text, "embedding": embedding_vector.numpy().tolist()},
+                body={"text": text, "embedding": embedding_list},
             )
         except Exception as e:
-            logging.error("elasticsearch 데이터 인덱싱 실패")
+            logging.error(f"elasticsearch 데이터 인덱싱 실패, {e}")
 
     def search_data_in_elasticsearch(self, user_query):
         # TODO: search 수정
         query_embedding = self.get_embedding_vector(user_query)
+
         search_body = {
             "query": {
                 "script_score": {
@@ -90,5 +105,5 @@ class EmbeddingModel:
             results = self.es.search(index="news", body=search_body)
             return results
         except Exception as e:
-            logging.error("elasticsearch 데이터 검색 실패")
+            logging.error(f"elasticsearch 데이터 검색 실패, {e}")
             return False

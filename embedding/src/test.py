@@ -12,9 +12,9 @@ def main():
     embedding_model.index_data_to_elasticsearch(data)
 
     # 사용자 쿼리 검색 예시
-    user_query = "검색할 텍스트 입력"
+    user_query = "반도체 관련된 뉴스 있어?"
     search_results = embedding_model.search_data_in_elasticsearch(user_query)
-
+    logging.info(f"검색 결과: {search_results}")
     # 검색 결과 출력
     for hit in search_results["hits"]["hits"]:
         logging.info(f"Score: {hit['_score']}, Text: {hit['_source']['text']}")
