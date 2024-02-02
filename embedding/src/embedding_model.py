@@ -36,7 +36,13 @@ class EmbeddingModel:
 
         try:
             es = Elasticsearch(
-                [{"host": "localhost", "port": 9200, "scheme": "https"}],
+                [
+                    {
+                        "host": self.config["elastic_search"]["localhost"],
+                        "port": self.config["elastic_search"]["port"],
+                        "scheme": self.config["elastic_search"]["https"],
+                    }
+                ],
                 basic_auth=(es_username, es_password),
                 verify_certs=False,
             )
@@ -45,20 +51,27 @@ class EmbeddingModel:
             logging.error(f"elasticsearch 연결 실패,{e}")
             return False
 
-    def chunked_text(self, text):
-        if len(text) > self.input_max_length:
+    def chunked_text(self, text, chunk_size):
+        chunked_texts = []
+        overlap = int(chunk_size * self.config["overlap_ratio"])
+
+        i = 0
+        while i < len(text):
+            chunked_texts.append(text[i : i + chunk_size])
+            i += chunk_size - overlap
+
+        return chunked_texts
+
+    def get_embedding_vector(self, text):
+        chunk_size = self.input_max_length
+        if len(text) > chunk_size:
             logging.info(
                 "Input text is longer than max length of the model. \n start chunking"
             )
-            return [
-                text[i : i + self.input_max_length]
-                for i in range(0, len(text), self.input_max_length)
-            ]
+            chunked_texts = self.chunked_text(text, chunk_size)
         else:
-            return [text]
+            chunked_texts = [text]
 
-    def get_embedding_vector(self, text):
-        chunked_texts = self.chunked_text(text)
         embeddings = []
         for chunk in chunked_texts:
             inputs = self.tokenizer(
