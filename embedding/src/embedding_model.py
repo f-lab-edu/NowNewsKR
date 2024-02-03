@@ -25,8 +25,10 @@ class EmbeddingModel:
         return config
 
     def load_model(self):
-        model = AutoModel.from_pretrained(self.config["embedding_model"])
-        tokenizer = AutoTokenizer.from_pretrained(self.config["embedding_model"])
+        model = AutoModel.from_pretrained(self.config["embedding"]["model_path"])
+        tokenizer = AutoTokenizer.from_pretrained(
+            self.config["embedding"]["model_path"]
+        )
         input_max_length = tokenizer.model_max_length
         return model, tokenizer, input_max_length
 
@@ -85,16 +87,21 @@ class EmbeddingModel:
         return result_embedding
 
     def index_data_to_elasticsearch(self, data):
-        # TODO: metadata 까지 인덱싱하도록 수정,
-        text = data["content"]
-        embedding_vector = self.get_embedding_vector(text)
+        # TODO: metadata 까지 인덱싱하도록 수정, text 값이 contents 만인지 제목+본문인지는 테스트 해서 더 잘되는걸로 수정
+        context = data["title"] + data["content"]
+        embedding_vector = self.get_embedding_vector(context)
         embedding_list = embedding_vector.numpy()[0].tolist()
-        print(self.es)
-        print(embedding_list)
+
         try:
             self.es.index(
                 index="news",
-                body={"text": text, "embedding": embedding_list},
+                body={
+                    "topic": data["topic"],
+                    "title": data["title"],
+                    "summary": data["summary"],
+                    "context": context,
+                    "embedding": embedding_list,
+                },
             )
         except Exception as e:
             logging.error(f"elasticsearch 데이터 인덱싱 실패, {e}")

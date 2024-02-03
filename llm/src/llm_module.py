@@ -1,6 +1,8 @@
 import logging
 import torch
 import yaml
+import os
+
 from accelerate import disk_offload
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
@@ -20,9 +22,13 @@ class LLMModule:
 
     @staticmethod
     def load_yaml(yaml_path):
-        with open(yaml_path, "r") as f:
-            config = yaml.load(f, Loader=yaml.FullLoader)
-        return config
+        try:
+            with open(yaml_path, "r") as f:
+                config = yaml.load(f, Loader=yaml.FullLoader)
+            return config
+        except FileNotFoundError as e:
+            logging.error(f"yaml 파일을 찾을 수 없습니다: {e}")
+            return False
 
     def load_device(self):
         device_map = self.config["device"]["gpu"]
@@ -32,23 +38,22 @@ class LLMModule:
         return device
 
     def load_model(self):
-        # TODO: 모델 로드 및 토크나이저 설정
-        """
-        model = AutoModelForCausalLM.from_pretrained(
-            self.config["llm_path"], device_map=self.device
-        )
-        model = AutoModelForCausalLM.from_pretrained(
-            self.config["llm_path"], device_map=self.device
-        )"""
+        model_path = self.config["llm"]["model_path"]
 
-        model = AutoModelForCausalLM.from_pretrained(
-            self.config["llm_path"],
-            local_files_only=True,  # Load from local disk only
-            use_cache=False,  # Disable caching
-            return_dict=True,  # Return the model as a PyTorch dictionary)
-        )
-        tokenizer = AutoTokenizer.from_pretrained(self.config["llm_path"])
-
+        if not os.path.exists(model_path):
+            logging.error("llm 모델 경로가 설정되지 않았습니다.")
+            return False
+        try:
+            model = AutoModelForCausalLM.from_pretrained(
+                model_path,
+                local_files_only=True,  # Load from local disk only
+                use_cache=False,  # Disable caching
+                return_dict=True,  # Return the model as a PyTorch dictionary)
+            )
+            tokenizer = AutoTokenizer.from_pretrained(self.config["llm"]["model_path"])
+        except Exception as e:
+            logging.error(f"모델 로딩 실패: {e}")
+            return False
         return model, tokenizer
 
     # TODO: 프롬프트 엔지니어링(프롬프트 추가, 영어 테스트), indicator 포맷 변경(영어로 변경), input 청크
