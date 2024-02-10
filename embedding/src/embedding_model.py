@@ -132,7 +132,7 @@ class EmbeddingModel:
 
     def index_data_to_elasticsearch(self, data):
         # TODO: metadata 까지 인덱싱하도록 수정, text 값이 contents 만인지 제목+본문인지는 테스트 해서 더 잘되는걸로 수정
-        context = data["title"] + data["content"]
+        context = f"뉴스제목: {data['title']}\n 뉴스 요약 : {data['summary']}\n 뉴스내용: {data['content']}"
 
         try:
             embedding_vector = self.get_embedding_vector(context)
