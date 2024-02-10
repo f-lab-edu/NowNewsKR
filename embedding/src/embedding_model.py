@@ -1,8 +1,12 @@
+import logging
+import urllib3
+
 import torch
 import yaml
-import logging
 from elasticsearch import Elasticsearch
 from transformers import AutoModel, AutoTokenizer
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class EmbeddingModel:
@@ -17,6 +21,7 @@ class EmbeddingModel:
         self.config = self.load_yaml(yaml_path)
         self.model, self.tokenizer, self.input_max_length = self.load_model()
         self.es = self.initialize_elasticsearch()
+        self.create_es_index()
 
     @staticmethod
     def load_yaml(yaml_path):
@@ -25,8 +30,10 @@ class EmbeddingModel:
         return config
 
     def load_model(self):
-        model = AutoModel.from_pretrained(self.config["embedding_model"])
-        tokenizer = AutoTokenizer.from_pretrained(self.config["embedding_model"])
+        model = AutoModel.from_pretrained(self.config["embedding"]["model_path"])
+        tokenizer = AutoTokenizer.from_pretrained(
+            self.config["embedding"]["model_path"]
+        )
         input_max_length = tokenizer.model_max_length
         return model, tokenizer, input_max_length
 
@@ -38,9 +45,9 @@ class EmbeddingModel:
             es = Elasticsearch(
                 [
                     {
-                        "host": self.config["elastic_search"]["localhost"],
+                        "host": self.config["elastic_search"]["host"],
                         "port": self.config["elastic_search"]["port"],
-                        "scheme": self.config["elastic_search"]["https"],
+                        "scheme": self.config["elastic_search"]["scheme"],
                     }
                 ],
                 basic_auth=(es_username, es_password),
@@ -50,6 +57,43 @@ class EmbeddingModel:
         except Exception as e:
             logging.error(f"elasticsearch 연결 실패,{e}")
             return False
+
+    def create_es_index(self):
+        index_name = "news"  # 인덱스 이름 변경 가능
+        index_settings = {
+            "settings": {
+                "number_of_shards": 1,  # 샤드 수는 요구 사항에 따라 조정
+                "number_of_replicas": 0,  # 복제본 수는 요구 사항에 따라 조정
+            },
+            "mappings": {
+                "properties": {
+                    "topic": {
+                        "type": "keyword"
+                    },  # 주제는 필터링에 사용될 수 있으므로 keyword 타입 사용
+                    "title": {
+                        "type": "text"
+                    },  # 제목은 텍스트 검색에 사용될 수 있으므로 text 타입 사용
+                    "summary": {
+                        "type": "text"
+                    },  # 요약은 텍스트 검색에 사용될 수 있으므로 text 타입 사용
+                    "press": {"type": "keyword"},  # 출판사는 keyword 타입 사용
+                    "date": {"type": "date"},  # 날짜는 date 타입 사용
+                    "text": {"type": "text"},  # 텍스트 검색을 위한 text 타입 사용
+                    "embedding": {
+                        "type": "dense_vector",
+                        "dims": 768,
+                    },  # 임베딩 벡터는 dense_vector 타입 사용
+                }
+            },
+        }
+
+        # 인덱스가 이미 존재하는지 확인
+        if not self.es.indices.exists(index=index_name):
+            # 인덱스 생성
+            self.es.indices.create(index=index_name, body=index_settings)
+            logging.info(f"{index_name} 인덱스 생성 완료.")
+        else:
+            logging.info(f"{index_name} 인덱스는 이미 존재합니다.")
 
     def chunked_text(self, text, chunk_size):
         chunked_texts = []
@@ -82,41 +126,73 @@ class EmbeddingModel:
                 embeddings.append(embedding)
 
         result_embedding = torch.mean(torch.stack(embeddings), dim=0)
-        return result_embedding
+        embedding_vector = result_embedding.numpy()[0].tolist()
+
+        return embedding_vector
 
     def index_data_to_elasticsearch(self, data):
-        # TODO: metadata 까지 인덱싱하도록 수정,
-        text = data["content"]
-        embedding_vector = self.get_embedding_vector(text)
-        embedding_list = embedding_vector.numpy()[0].tolist()
-        print(self.es)
-        print(embedding_list)
+        # TODO: metadata 까지 인덱싱하도록 수정, text 값이 contents 만인지 제목+본문인지는 테스트 해서 더 잘되는걸로 수정
+        context = data["title"] + data["content"]
+
         try:
-            self.es.index(
+            embedding_vector = self.get_embedding_vector(context)
+
+        except Exception as e:
+            logging.error(f"Embedding vector generation failed: {e}")
+            return False
+
+        try:
+            response = self.es.index(
                 index="news",
-                body={"text": text, "embedding": embedding_list},
+                body={
+                    "topic": data["topic"],
+                    "title": data["title"],
+                    "summary": data["summary"],
+                    "press": data["press"],
+                    "date": data["date"],
+                    "text": context,
+                    "embedding": embedding_vector,
+                },
+            )
+            logging.info(
+                f"[1] elasticsearch 데이터 인덱싱 성공, 문서 ID: {response['_id']}"
             )
         except Exception as e:
-            logging.error(f"elasticsearch 데이터 인덱싱 실패, {e}")
+            logging.error(f"elasticsearch 데이터 인덱싱 실패: {e}")
+            return False
+
+        return True
 
     def search_data_in_elasticsearch(self, user_query):
         # TODO: search 수정
-        query_embedding = self.get_embedding_vector(user_query)
+        user_query_vector = self.get_embedding_vector(user_query)
 
         search_body = {
             "query": {
                 "script_score": {
                     "query": {"match_all": {}},
                     "script": {
-                        "source": "cosineSimilarity(params.query_embedding, doc['embedding']) + 1.0",
-                        "params": {"query_embedding": query_embedding.tolist()},
+                        "source": "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
+                        "params": {"query_vector": user_query_vector},
                     },
                 }
-            }
+            },
+            "_source": ["title", "text"],  # 검색 결과에 포함할 필드 지정
+            "size": 3,  # 반환할 문서의 최대 개수
         }
+
         try:
-            results = self.es.search(index="news", body=search_body)
-            return results
+            response = self.es.search(index="news", body=search_body)
+            return response
         except Exception as e:
             logging.error(f"elasticsearch 데이터 검색 실패, {e}")
             return False
+
+    def delete_news_index(self):
+        try:
+            response = self.es.indices.delete(index="news")
+            logging.info("인덱스 'news'가 성공적으로 삭제되었습니다.")
+            return response
+        except Exception as e:
+            logging.error(f"인덱스 삭제 중 오류가 발생했습니다: {e}")
+            return None
