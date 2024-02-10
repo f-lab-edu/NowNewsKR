@@ -10,8 +10,10 @@ elastic_search:
   port: 9200
   scheme: "https"
 
-embedding_model: "embedding/models/BM-K_KoSimCSE-roberta"
-llm_path: "llm/models/yiko_model_4bit"
+embedding:
+  model_path: "embedding/models/BM-K_KoSimCSE-roberta"
+llm:
+  model_path: "llm/models/yiko_model_4bit"
 overlap_ratio: 0.2
 
 device:
