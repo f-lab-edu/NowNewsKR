@@ -77,7 +77,10 @@ class EmbeddingModel:
                         "type": "text"
                     },  # 요약은 텍스트 검색에 사용될 수 있으므로 text 타입 사용
                     "press": {"type": "keyword"},  # 출판사는 keyword 타입 사용
-                    "date": {"type": "date"},  # 날짜는 date 타입 사용
+                    "date": {
+                        "type": "date",  # 날짜 필드 유형을 명시
+                        "format": "yyyy-MM-dd HH:mm:ss",  # 이 필드에 대한 날짜 형식을 지정
+                    },
                     "text": {"type": "text"},  # 텍스트 검색을 위한 text 타입 사용
                     "embedding": {
                         "type": "dense_vector",
@@ -95,71 +98,72 @@ class EmbeddingModel:
         else:
             logging.info(f"{index_name} 인덱스는 이미 존재합니다.")
 
-    def chunked_text(self, text, chunk_size):
+    def chunked_text(self, prompt_text, text, chunk_size):
         chunked_texts = []
         overlap = int(chunk_size * self.config["overlap_ratio"])
 
         i = 0
         while i < len(text):
-            chunked_texts.append(text[i : i + chunk_size])
+            chunk = prompt_text + text[i : i + chunk_size]
+            chunked_texts.append(chunk)
+            if len(chunk) < chunk_size:
+                break
             i += chunk_size - overlap
 
         return chunked_texts
 
     def get_embedding_vector(self, text):
-        chunk_size = self.input_max_length
-        if len(text) > chunk_size:
-            logging.info(
-                "Input text is longer than max length of the model. \n start chunking"
-            )
-            chunked_texts = self.chunked_text(text, chunk_size)
-        else:
-            chunked_texts = [text]
-
-        embeddings = []
-        for chunk in chunked_texts:
+        try:
             inputs = self.tokenizer(
-                chunk, padding=True, truncation=True, return_tensors="pt"
+                text, padding=True, truncation=True, return_tensors="pt"
             )
             with torch.no_grad():
                 embedding = self.model(**inputs).pooler_output
-                embeddings.append(embedding)
-
-        result_embedding = torch.mean(torch.stack(embeddings), dim=0)
-        embedding_vector = result_embedding.numpy()[0].tolist()
-
-        return embedding_vector
+            return embedding.numpy()[0].tolist()
+        except Exception as e:
+            logging.error(f"Embedding vector 생성 실패: {e}")
+            return None
 
     def index_data_to_elasticsearch(self, data):
         # TODO: metadata 까지 인덱싱하도록 수정, text 값이 contents 만인지 제목+본문인지는 테스트 해서 더 잘되는걸로 수정
-        context = f"뉴스제목: {data['title']}\n 뉴스 요약 : {data['summary']}\n 뉴스내용: {data['content']}"
+        prompt_text = f"뉴스제목: {data['title']}\n 뉴스내용: "
+        context = data["content"]
+        # get chunked texts
+        chunk_size = self.input_max_length - len(prompt_text)
 
-        try:
-            embedding_vector = self.get_embedding_vector(context)
+        chunked_texts = (
+            [prompt_text + context]
+            if len(context) <= chunk_size
+            else self.chunked_text(prompt_text, context, chunk_size)
+        )
 
-        except Exception as e:
-            logging.error(f"Embedding vector generation failed: {e}")
-            return False
+        for chunk in chunked_texts:
 
-        try:
-            response = self.es.index(
-                index="news",
-                body={
-                    "topic": data["topic"],
-                    "title": data["title"],
-                    "summary": data["summary"],
-                    "press": data["press"],
-                    "date": data["date"],
-                    "text": context,
-                    "embedding": embedding_vector,
-                },
-            )
-            logging.info(
-                f"[1] elasticsearch 데이터 인덱싱 성공, 문서 ID: {response['_id']}"
-            )
-        except Exception as e:
-            logging.error(f"elasticsearch 데이터 인덱싱 실패: {e}")
-            return False
+            embedding_vector = self.get_embedding_vector(chunk)
+            if embedding_vector is None:
+                return False
+
+            body = {
+                "topic": data["topic"],
+                "title": data["title"],
+                "summary": data["summary"],
+                "press": data["press"],
+                "date": data["date"],
+                "text": chunk,
+                "embedding": embedding_vector,
+            }
+
+            try:
+                response = self.es.index(
+                    index="news",
+                    body=body,
+                )
+                logging.info(
+                    f"[1] elasticsearch 데이터 인덱싱 성공, 문서 ID: {response['_id']}"
+                )
+            except Exception as e:
+                logging.error(f"elasticsearch 데이터 인덱싱 실패: {e}")
+                return False
 
         return True
 
