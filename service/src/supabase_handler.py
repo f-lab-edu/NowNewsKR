@@ -79,22 +79,22 @@ class SupabaseHandler:
             return False
 
     # 데이터를 Python dictionary 형태로 반환하는 함수 추가
-    def data_to_dict(self, data):
-        data_dict_list = []
+    def data_to_news_documents(self, data):
+        documents = []
         for item in data:
-            data_dict = {
-                "url": item.get("url", ""),
-                "topic": item.get("topic", ""),
-                "title": item.get("title", ""),
-                "status": item.get("status", ""),
-                "content": item.get("content", ""),
-                "summary": item.get("summary", ""),
-                "press": item.get("press", ""),
-                "journalist": item.get("journalist", ""),
-                "date": item.get("date", ""),
-            }
-            data_dict_list.append(data_dict)
-        return data_dict_list
+            document = NewsDocuments(
+                url=item.get("url"),
+                topic=item.get("topic"),
+                title=item.get("title"),
+                status=item.get("status"),
+                content=item.get("content"),
+                summary=item.get("summary"),
+                press=item.get("press"),
+                journalist=item.get("journalist"),
+                date=item.get("date"),
+            )
+            documents.append(document)
+        return documents
 
 
 def main():
@@ -107,11 +107,11 @@ def main():
     # 데이터 가져오기
     data = supabase_handler.get_data_from_supabase()
 
-    # 데이터를 Python dictionary 형태로 변환
-    data_dict_list = supabase_handler.data_to_dict(data)
+    # 데이터를 NewsDocuments 객체로 변환
+    news_documents = supabase_handler.data_to_news_documents(data)
 
     # 반환된 데이터 사용
-    for item in data_dict_list:
+    for item in news_documents:
         logging.info(item)
 
 
