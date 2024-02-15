@@ -67,7 +67,10 @@ class SupabaseHandler:
     def get_data_from_supabase(self):
         try:
             existing_record = (
-                self.client.table(self.supabase_table).select("*").execute()
+                self.client.table(self.supabase_table)
+                .select("*")
+                .eq("is_indexed", False)  # 인덱싱되지 않은 데이터만 가져오기
+                .execute()
             )
             if existing_record.data:
                 return existing_record.data
@@ -76,6 +79,37 @@ class SupabaseHandler:
                 return []
         except Exception as e:
             logging.error("Supabase data load 실패: %s", e)
+            return False
+
+    def update_db_index_status(self, data):
+        try:
+            response = (
+                self.client.table(self.supabase_table)
+                .update({"is_indexed": True})
+                .eq("url", data.url)
+                .execute()
+            )
+            return response
+        except Exception as e:
+            logging.error("An error occurred while updating Supabase: %s", e)
+            return False
+
+    def reset_db_index_status(self):
+        try:
+            # Supabase 테이블의 모든 아이템에 대해 is_indexed 값을 False로 설정
+            response = (
+                self.client.table(self.supabase_table)
+                .update({"is_indexed": False})
+                .eq("is_indexed", True)
+                .execute()  # 특정 조건 없이 모든 레코드에 대해 실행
+            )
+
+            logging.info(
+                "Successfully reset is_indexed status for all items in Supabase."
+            )
+            return response
+        except Exception as e:
+            logging.error("An error occurred while resetting Supabase: %s", e)
             return False
 
     # 데이터를 Python dictionary 형태로 반환하는 함수 추가
@@ -92,6 +126,7 @@ class SupabaseHandler:
                 press=item.get("press"),
                 journalist=item.get("journalist"),
                 date=item.get("date"),
+                is_indexed=item.get("is_indexed"),
             )
             documents.append(document)
         return documents

@@ -23,6 +23,7 @@ class TestSupabaseHandler(TestCase):
             "press_text",
             "journalist",
             "2024-01-22 19:15:01",
+            False,
         )
 
     def test_superbase_init(self):

@@ -98,6 +98,7 @@ class NaverNewsCrawler:
                     press_text,
                     journalist,
                     date_time,
+                    False,
                 )
 
                 self.supabase_handler.save_news_to_supabase(news_item)

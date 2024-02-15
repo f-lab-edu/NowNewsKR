@@ -33,7 +33,7 @@ def initialize_supabase():
         data = supabase_handler.get_data_from_supabase()
 
         # Convert data to Python dictionary format
-        data_dict = supabase_handler.data_to_dict(data)
+        data_dict = supabase_handler.data_to_news_documents(data)
 
         return data_dict
 

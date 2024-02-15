@@ -79,7 +79,7 @@ class EmbeddingModel:
                     "press": {"type": "keyword"},  # 출판사는 keyword 타입 사용
                     "date": {
                         "type": "date",  # 날짜 필드 유형을 명시
-                        "format": "yyyy-MM-dd HH:mm:ss",  # 이 필드에 대한 날짜 형식을 지정
+                        "format": "yyyy-MM-dd'T'HH:mm:ss",  # 이 필드에 대한 날짜 형식을 지정
                     },
                     "text": {"type": "text"},  # 텍스트 검색을 위한 text 타입 사용
                     "embedding": {
@@ -124,49 +124,6 @@ class EmbeddingModel:
             logging.error(f"Embedding vector 생성 실패: {e}")
             return None
 
-    def index_data_to_elasticsearch(self, data):
-        # TODO: metadata 까지 인덱싱하도록 수정, text 값이 contents 만인지 제목+본문인지는 테스트 해서 더 잘되는걸로 수정
-        prompt_text = f"뉴스제목: {data['title']}\n 뉴스내용: "
-        context = data["content"]
-        # get chunked texts
-        chunk_size = self.input_max_length - len(prompt_text)
-
-        chunked_texts = (
-            [prompt_text + context]
-            if len(context) <= chunk_size
-            else self.chunked_text(prompt_text, context, chunk_size)
-        )
-
-        for chunk in chunked_texts:
-
-            embedding_vector = self.get_embedding_vector(chunk)
-            if embedding_vector is None:
-                return False
-
-            body = {
-                "topic": data["topic"],
-                "title": data["title"],
-                "summary": data["summary"],
-                "press": data["press"],
-                "date": data["date"],
-                "text": chunk,
-                "embedding": embedding_vector,
-            }
-
-            try:
-                response = self.es.index(
-                    index="news",
-                    body=body,
-                )
-                logging.info(
-                    f"[1] elasticsearch 데이터 인덱싱 성공, 문서 ID: {response['_id']}"
-                )
-            except Exception as e:
-                logging.error(f"elasticsearch 데이터 인덱싱 실패: {e}")
-                return False
-
-        return True
-
     def search_data_in_elasticsearch(self, user_query):
         # TODO: search 수정
         user_query_vector = self.get_embedding_vector(user_query)
@@ -191,12 +148,3 @@ class EmbeddingModel:
         except Exception as e:
             logging.error(f"elasticsearch 데이터 검색 실패, {e}")
             return False
-
-    def delete_news_index(self):
-        try:
-            response = self.es.indices.delete(index="news")
-            logging.info("인덱스 'news'가 성공적으로 삭제되었습니다.")
-            return response
-        except Exception as e:
-            logging.error(f"인덱스 삭제 중 오류가 발생했습니다: {e}")
-            return None

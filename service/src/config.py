@@ -23,7 +23,17 @@ class Topic(Enum):
 
 class NewsDocuments:
     def __init__(
-        self, url, topic, title, status, content, summary, press, journalist, date
+        self,
+        url,
+        topic,
+        title,
+        status,
+        content,
+        summary,
+        press,
+        journalist,
+        date,
+        is_indexed,
     ):
         self.url = url
         self.topic = topic
@@ -34,9 +44,10 @@ class NewsDocuments:
         self.press = press
         self.journalist = journalist
         self.date = date
+        self.is_indexed = is_indexed
 
     def __repr__(self):
-        return f"NewsDocuments({self.url}, {self.topic}, {self.title}, {self.status}, {self.content}, {self.summary}, {self.press}, {self.journalist}, {self.date})"
+        return f"NewsDocuments({self.url}, {self.topic}, {self.title}, {self.status}, {self.content}, {self.summary}, {self.press}, {self.journalist}, {self.date}, {self.is_indexed})"
 
     def to_superbase_format(self):
         return {
@@ -49,4 +60,5 @@ class NewsDocuments:
             "press": self.press,
             "journalist": self.journalist,
             "date": self.date,
+            "is_indexed": self.is_indexed,
         }
