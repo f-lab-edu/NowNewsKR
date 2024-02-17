@@ -10,9 +10,15 @@ elastic_search:
   port: 9200
   scheme: "https"
 
-embedding_model: "embedding/models/BM-K_KoSimCSE-roberta"
-llm_path: "llm/models/yiko_model_4bit"
+embedding:
+  model_path: "embedding/models/BM-K_KoSimCSE-roberta"
+llm:
+  use_openai: true
+  model_path: "llama2" #"llm/models/yiko_model_4bit"
 overlap_ratio: 0.2
+
+openai:
+  api_key: "sk-"
 
 device:
   gpu: cuda:0
