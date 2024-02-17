@@ -124,7 +124,7 @@ class EmbeddingModel:
             logging.error(f"Embedding vector 생성 실패: {e}")
             return None
 
-    def search_data_in_elasticsearch(self, user_query):
+    def search_data_in_elasticsearch(self, user_query, top_k, score_threshold):
         # TODO: search 수정
         user_query_vector = self.get_embedding_vector(user_query)
 
@@ -134,12 +134,15 @@ class EmbeddingModel:
                     "query": {"match_all": {}},
                     "script": {
                         "source": "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
-                        "params": {"query_vector": user_query_vector},
+                        "params": {
+                            "query_vector": user_query_vector,
+                        },
                     },
                 }
             },
             "_source": ["title", "text"],  # 검색 결과에 포함할 필드 지정
-            "size": 3,  # 반환할 문서의 최대 개수
+            "size": top_k,  # 반환할 문서의 최대 개수
+            "min_score": score_threshold,  # 임계값 이상의 스코어를 가진 문서만 반환
         }
 
         try:

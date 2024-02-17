@@ -8,7 +8,7 @@ def main():
     # user query search
 
     user_query = "엔비디아 관련 뉴스 있어?"
-    search_results = embedding_model.search_data_in_elasticsearch(user_query)
+    search_results = embedding_model.search_data_in_elasticsearch(user_query, 3, 1.4)
     if not search_results:
         logging.info("검색 결과가 없거나 검색 중 오류가 발생했습니다.")
     else:
