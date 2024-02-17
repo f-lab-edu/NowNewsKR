@@ -7,14 +7,19 @@ def main():
 
     # user query search
 
-    user_query = "엔비디아 관련 뉴스 있어?"
+    user_query = "엔비디아 관련뉴스 있어?"
     search_results = embedding_model.search_data_in_elasticsearch(user_query, 3, 1.4)
+
     if not search_results:
         logging.info("검색 결과가 없거나 검색 중 오류가 발생했습니다.")
     else:
-
         for i, hit in enumerate(search_results["hits"]["hits"]):
             print(f"[{i}] Score: {hit['_score']}, Text: {hit['_source']['text']}\n")
+
+    combined_text = "\n".join(
+        [hit["_source"]["text"] for hit in search_results["hits"]["hits"]]
+    )
+    print(f"Combined Text:\n{combined_text}")
 
 
 if __name__ == "__main__":
