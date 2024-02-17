@@ -1,3 +1,4 @@
+import logging
 from llm_module import LLMModule
 
 
@@ -44,7 +45,9 @@ def main():
     max_new_tokens = 512
     temperature = 0.7
     top_p = 0.9
-    llm_model.ask(user_query, input_text, max_new_tokens, temperature, top_p)
+
+    answer = llm_model.ask(user_query, input_text, max_new_tokens, temperature, top_p)
+    logging.info("llm answer: %s", answer)
 
 
 if __name__ == "__main__":
