@@ -3,7 +3,7 @@ from llm_module import LLMModule
 
 
 def main():
-    llm_model = LLMModule("./conf.yaml")
+    llm_model = LLMModule()
 
     # 사용자 질문 입력
     user_query = "오픈 AI의 CEO는 누구인가요?"

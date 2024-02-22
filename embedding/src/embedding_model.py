@@ -14,9 +14,11 @@ project_dir = os.path.join(current_dir, "..", "..")
 service_src_path = os.path.join(project_dir, "service", "src")
 sys.path.append(os.path.join(project_dir, service_src_path))
 
+from config import Config
+
 
 class EmbeddingModel:
-    def __init__(self, yaml_path):
+    def __init__(self, yaml_path=Config.YAML_PATH):
         self.config = None
         self.model = None
         self.tokenizer = None

@@ -1,10 +1,12 @@
 import yaml
-from elasticsearch import Elasticsearch
 import logging
+from elasticsearch import Elasticsearch
+
+from config import Config
 
 
 class ElasticSearchHandler:
-    def __init__(self, yaml_path):
+    def __init__(self, yaml_path=Config.YAML_PATH):
         self.config = None
         self.es = None
         self.load_configuration(yaml_path)

@@ -9,29 +9,31 @@ from config import Config, Topic, NewsDocuments
 
 
 class SupabaseConfig:
-    def __init__(self, config_file_path):
-        self.config_file_path = config_file_path
+    def __init__(self, yaml_path=Config.YAML_PATH):
+        self.config = None
         self.supabase_url = None
         self.supabase_key = None
         self.supabase_table = None
-        self.load_config()
+        self.load_config(yaml_path)
 
-    def load_config(self):
-        try:
-            with open(self.config_file_path) as f:
-                conf = yaml.load(f, Loader=yaml.FullLoader)
-            self.supabase_url = conf["supabase"]["supabase_url"]
-            self.supabase_key = conf["supabase"]["supabase_key"]
-            self.supabase_table = conf["supabase"]["supabase_table"]
-        except Exception as e:
-            logging.error("yaml 파일 load 실패: %s", e)
+    def load_config(self, yaml_path):
+        self.config = self.load_yaml(yaml_path)
+        self.supabase_url = self.config["supabase"]["supabase_url"]
+        self.supabase_key = self.config["supabase"]["supabase_key"]
+        self.supabase_table = self.config["supabase"]["supabase_table"]
+
+    def load_yaml(self, yaml_path):
+        with open(yaml_path, "r") as f:
+            config = yaml.load(f, Loader=yaml.FullLoader)
+        return config
 
 
 class SupabaseHandler:
-    def __init__(self, supabase_config):
-        self.supabase_url = supabase_config.supabase_url
-        self.supabase_key = supabase_config.supabase_key
-        self.supabase_table = supabase_config.supabase_table
+    def __init__(self, yaml_path=Config.YAML_PATH):
+        self.supabase_config = SupabaseConfig(yaml_path)
+        self.supabase_url = self.supabase_config.supabase_url
+        self.supabase_key = self.supabase_config.supabase_key
+        self.supabase_table = self.supabase_config.supabase_table
         self.client: Client = create_client(self.supabase_url, self.supabase_key)
 
     def save_news_to_supabase(self, news_document):
@@ -134,10 +136,8 @@ class SupabaseHandler:
 
 def main():
 
-    # SupabaseConfig 객체 생성
-    supabase_config = SupabaseConfig(Config.YAML_PATH)
     # SupabaseHandler 객체 생성
-    supabase_handler = SupabaseHandler(supabase_config)
+    supabase_handler = SupabaseHandler()
 
     # 데이터 가져오기
     data = supabase_handler.get_data_from_supabase()

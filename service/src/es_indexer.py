@@ -76,19 +76,16 @@ class ESIndexer:
 
 if __name__ == "__main__":
 
-    # SupabaseConfig 객체 생성
-    supabase_config = SupabaseConfig(Config.YAML_PATH)
     # SupabaseHandler 객체 생성
-    supabase_handler = SupabaseHandler(supabase_config)
+    supabase_handler = SupabaseHandler()
 
     # 데이터 가져오기
     news_db = supabase_handler.get_data_from_supabase()
 
     # 데이터를 NewsDocuments 객체로 변환
     news_documents = supabase_handler.data_to_news_documents(news_db)
-
-    embedding_model = EmbeddingModel(Config.YAML_PATH)
-    es_handler = ElasticSearchHandler(Config.YAML_PATH)
+    embedding_model = EmbeddingModel()
+    es_handler = ElasticSearchHandler()
     es_indexer = ESIndexer(embedding_model, es_handler)
 
     # 반환된 데이터 사용

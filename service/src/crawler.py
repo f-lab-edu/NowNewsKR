@@ -8,7 +8,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from config import Config, Topic, NewsDocuments
-from supabase_handler import SupabaseConfig, SupabaseHandler
+from supabase_handler import SupabaseHandler
 
 
 class StringUtils:
@@ -106,11 +106,10 @@ class NaverNewsCrawler:
 
 def main() -> None:
     try:
-        supabase_config = SupabaseConfig(Config.YAML_PATH)
         # stock
         for topic in Topic:
             if topic == Topic.STOCK:
-                supabase_handler = SupabaseHandler(supabase_config)
+                supabase_handler = SupabaseHandler()
 
                 crawler = NaverNewsCrawler(topic, Config.STOCK_URL, supabase_handler)
 

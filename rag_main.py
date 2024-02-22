@@ -18,7 +18,8 @@ def configure_project_paths():
 configure_project_paths()
 
 from config import Config
-from supabase_handler import SupabaseConfig, SupabaseHandler
+
+# from supabase_handler import SupabaseConfig, SupabaseHandler
 from embedding_model import EmbeddingModel
 from llm_module import LLMModule
 from es_handler import ElasticSearchHandler
@@ -36,7 +37,7 @@ class RAGApp:
     def initialize_embedding_model(self):
         try:
             # Initialize EmbeddingModel and index data to Elasticsearch
-            self.embedding_model = EmbeddingModel(Config.YAML_PATH)
+            self.embedding_model = EmbeddingModel()
 
         except Exception as e:
             logging.error("An error occurred in initialize_embedding_model: %s", e)
@@ -44,7 +45,7 @@ class RAGApp:
     def initialize_llm(self):
         try:
             # Initialize LLMModule
-            self.llm_model = LLMModule(Config.YAML_PATH)
+            self.llm_model = LLMModule()
 
         except Exception as e:
             logging.error("An error occurred in initialize_llm: %s", e)
@@ -52,7 +53,7 @@ class RAGApp:
     def initialize_es_handler(self):
         try:
             # Initialize Elasticsearch handler
-            self.es_handler = ElasticSearchHandler(Config.YAML_PATH)
+            self.es_handler = ElasticSearchHandler()
 
         except Exception as e:
             logging.error("An error occurred in initialize_es_handler: %s", e)

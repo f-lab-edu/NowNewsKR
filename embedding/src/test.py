@@ -12,8 +12,8 @@ from es_handler import ElasticSearchHandler
 
 
 def main():
-    embedding_model = EmbeddingModel("./conf.yaml")
-    es_handler = ElasticSearchHandler("./conf.yaml")
+    embedding_model = EmbeddingModel()
+    es_handler = ElasticSearchHandler()
     # user query search
 
     user_query = "엔비디아 관련뉴스 있어?"
@@ -36,5 +36,5 @@ if __name__ == "__main__":
     main()
 
     # indexed data 삭제
-    # embedding_model = EmbeddingModel("./conf.yaml")
+    # embedding_model = EmbeddingModel()
     # embedding_model.delete_news_index()
