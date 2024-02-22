@@ -21,27 +21,17 @@ from config import Config
 from supabase_handler import SupabaseConfig, SupabaseHandler
 from embedding_model import EmbeddingModel
 from llm_module import LLMModule
+from es_handler import ElasticSearchHandler
 
 
 class RAGApp:
     def __init__(self):
-        # self.supabase_config = None
-        # self.supabase_handler = None
         self.embedding_model = None
         self.llm_model = None
-        # self.initialize_supabase()
+        self.es_handler = None
         self.initialize_embedding_model()
+        self.initialize_es_handler()
         self.initialize_llm()
-
-    # def initialize_supabase(self):
-    #     try:
-    #         # Initialize Supabase configuration and handler
-    #         self.supabase_config = SupabaseConfig(Config.YAML_PATH)
-    #         self.supabase_handler = SupabaseHandler(self.supabase_config)
-
-    #     except Exception as e:
-    #         logging.error("An error occurred in initialize_supabase: %s", e)
-    #         return False
 
     def initialize_embedding_model(self):
         try:
@@ -59,20 +49,20 @@ class RAGApp:
         except Exception as e:
             logging.error("An error occurred in initialize_llm: %s", e)
 
-    # def get_data_from_supabase(self):
-    #     # Retrieve data from Supabase
-    #     data = self.supabase_handler.get_data_from_supabase()
+    def initialize_es_handler(self):
+        try:
+            # Initialize Elasticsearch handler
+            self.es_handler = ElasticSearchHandler(Config.YAML_PATH)
 
-    #     # Convert data to Python dictionary format
-    #     news_documents = self.supabase_handler.data_to_news_documents(data)
-
-    #     return news_documents
+        except Exception as e:
+            logging.error("An error occurred in initialize_es_handler: %s", e)
 
     def search_newsdocuments(self, user_query, top_k, threshold):
 
         # Example user query for search
-        search_results = self.embedding_model.search_data_in_elasticsearch(
-            user_query, 3, 1.4
+        user_query_vector = self.embedding_model.get_embedding_vector(user_query)
+        search_results = self.es_handler.search_data_in_elasticsearch(
+            user_query_vector, top_k, threshold
         )
         return search_results
 
@@ -89,7 +79,7 @@ class RAGApp:
 
 def main():
     rag_app = RAGApp()
-    user_query = "엔비디아 매수할까?"
+    user_query = "엔비디아 관련뉴스 있어?"
 
     search_results = rag_app.search_newsdocuments(user_query, 3, 1.4)
 

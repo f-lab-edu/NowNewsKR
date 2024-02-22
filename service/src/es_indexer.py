@@ -2,19 +2,24 @@ import logging
 import os
 import sys
 
+from config import Config
+from supabase_handler import SupabaseConfig, SupabaseHandler
+from es_handler import ElasticSearchHandler
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_dir = os.path.join(current_dir, "..", "..")
 emb_src_path = os.path.join(project_dir, "embedding", "src")
 sys.path.append(os.path.join(project_dir, emb_src_path))
 
 from embedding_model import EmbeddingModel
-from config import Config
-from supabase_handler import SupabaseConfig, SupabaseHandler
 
 
 class ESIndexer:
-    def __init__(self, embedding_model: EmbeddingModel):
+    def __init__(
+        self, embedding_model: EmbeddingModel, es_handler: ElasticSearchHandler
+    ):
         self.embedding_model = embedding_model
+        self.es = es_handler.es
 
     def index_data_to_elasticsearch(self, data):
 
@@ -46,7 +51,7 @@ class ESIndexer:
             }
 
             try:
-                response = self.embedding_model.es.index(
+                response = self.es.index(
                     index="news",
                     body=body,
                 )
@@ -61,7 +66,7 @@ class ESIndexer:
 
     def delete_news_index(self):
         try:
-            response = self.embedding_model.es.indices.delete(index="news")
+            response = self.es.indices.delete(index="news")
             logging.info("인덱스 'news'가 성공적으로 삭제되었습니다.")
             return response
         except Exception as e:
@@ -83,7 +88,8 @@ if __name__ == "__main__":
     news_documents = supabase_handler.data_to_news_documents(news_db)
 
     embedding_model = EmbeddingModel(Config.YAML_PATH)
-    es_indexer = ESIndexer(embedding_model)
+    es_handler = ElasticSearchHandler(Config.YAML_PATH)
+    es_indexer = ESIndexer(embedding_model, es_handler)
 
     # 반환된 데이터 사용
     for news_doc in news_documents:
