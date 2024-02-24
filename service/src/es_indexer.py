@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import yaml
 
 from config import Config
 from supabase_handler import SupabaseConfig, SupabaseHandler
@@ -15,11 +16,35 @@ from embedding_model import EmbeddingModel
 
 
 class ESIndexer:
-    def __init__(
-        self, embedding_model: EmbeddingModel, es_handler: ElasticSearchHandler
-    ):
+    def __init__(self, embedding_model, yaml_path=Config.YAML_PATH):
+        self.config = None
+        self.es = None
         self.embedding_model = embedding_model
-        self.es = es_handler.es
+        self.load_configuration(yaml_path)
+
+    def load_configuration(self, yaml_path):
+        self.config = self.load_yaml(yaml_path)
+        self.es = ElasticSearchHandler().es
+
+    @staticmethod
+    def load_yaml(yaml_path):
+        with open(yaml_path, "r") as f:
+            config = yaml.load(f, Loader=yaml.FullLoader)
+        return config
+
+    def chunked_text(self, prompt_text, text, chunk_size):
+        chunked_texts = []
+        overlap = int(chunk_size * self.config["overlap_ratio"])
+
+        i = 0
+        while i < len(text):
+            chunk = prompt_text + text[i : i + chunk_size]
+            chunked_texts.append(chunk)
+            if len(chunk) < chunk_size:
+                break
+            i += chunk_size - overlap
+
+        return chunked_texts
 
     def index_data_to_elasticsearch(self, data):
 
@@ -32,7 +57,7 @@ class ESIndexer:
         chunked_texts = (
             [prompt_text + context]
             if len(context) <= chunk_size
-            else self.embedding_model.chunked_text(prompt_text, context, chunk_size)
+            else self.chunked_text(prompt_text, context, chunk_size)
         )
 
         for chunk in chunked_texts:
@@ -78,15 +103,14 @@ if __name__ == "__main__":
 
     # SupabaseHandler 객체 생성
     supabase_handler = SupabaseHandler()
+    embedding_model = EmbeddingModel()
 
     # 데이터 가져오기
     news_db = supabase_handler.get_news_data_from_supabase()
 
     # 데이터를 NewsDocuments 객체로 변환
     news_documents = supabase_handler.data_to_news_documents(news_db)
-    embedding_model = EmbeddingModel()
-    es_handler = ElasticSearchHandler()
-    es_indexer = ESIndexer(embedding_model, es_handler)
+    es_indexer = ESIndexer(embedding_model)
 
     # 반환된 데이터 사용
     for news_doc in news_documents:

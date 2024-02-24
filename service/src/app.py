@@ -3,6 +3,7 @@ import os
 import sys
 import json
 import uuid
+from apscheduler.schedulers.background import BackgroundScheduler
 
 from config import Config
 from supabase_handler import SupabaseHandler
@@ -23,11 +24,11 @@ app = Flask(__name__)
 
 
 class QueryApp:
-    def __init__(self):
-        self.embedding_model = EmbeddingModel()
-        self.llm_model = LLMModule()
-        self.supabase_handler = SupabaseHandler()
-        self.es_handler = ElasticSearchHandler()
+    def __init__(self, embedding_model, llm_model, supabase_handler, es_handler):
+        self.embedding_model = embedding_model
+        self.llm_model = llm_model
+        self.supabase_handler = supabase_handler
+        self.es_handler = es_handler
 
     def handle_query(self, user_id, session_id, user_query):
         user_query_vector = self.embedding_model.get_embedding_vector(user_query)
@@ -49,7 +50,11 @@ class QueryApp:
         }
 
 
-query_app = QueryApp()
+embedding_model = EmbeddingModel()
+llm_model = LLMModule()
+supabase_handler = SupabaseHandler()
+es_handler = ElasticSearchHandler()
+query_app = QueryApp(embedding_model, llm_model, supabase_handler, es_handler)
 
 
 @app.route("/query", methods=["POST"])
