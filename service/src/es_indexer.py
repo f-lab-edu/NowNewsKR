@@ -80,7 +80,7 @@ if __name__ == "__main__":
     supabase_handler = SupabaseHandler()
 
     # 데이터 가져오기
-    news_db = supabase_handler.get_data_from_supabase()
+    news_db = supabase_handler.get_news_data_from_supabase()
 
     # 데이터를 NewsDocuments 객체로 변환
     news_documents = supabase_handler.data_to_news_documents(news_db)
@@ -99,7 +99,7 @@ if __name__ == "__main__":
         if index_result:
             news_doc.is_indexed = True
             # supabase에 is_indexed 값 업데이트
-            update_result = supabase_handler.update_db_index_status(news_doc)
+            update_result = supabase_handler.update_news_db_index_status(news_doc)
             logging.info(f"Update result: {update_result}")
 
     # indexed data 삭제

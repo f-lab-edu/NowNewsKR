@@ -80,13 +80,14 @@ class RAGApp:
 
 def main():
     rag_app = RAGApp()
-    user_query = "엔비디아 관련뉴스 있어?"
+    user_query = "미래에셋맵스 92호 펀드와 관련된 뉴스 있어?"
 
     search_results = rag_app.search_newsdocuments(user_query, 3, 1.4)
 
     print(f"Combined search Text:\n{search_results}")
 
     answer = rag_app.generate_answer(user_query, context=search_results)
+
     print(f"Answer: {answer}")
 
     """성능 테스트

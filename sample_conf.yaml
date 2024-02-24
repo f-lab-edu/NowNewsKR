@@ -1,7 +1,11 @@
 supabase:
   supabase_url: "https://sample_supabase_url.supabase.co"
   supabase_key: "sample_supabase_key"
-  supabase_table: "NewsHubDB"
+  tables:
+    news: "NewsHubDB"
+    users: "Users"
+    sessions: "Sessions"
+    messages: "Messages"
 
 elastic_search:
   es_username: "sample_username"

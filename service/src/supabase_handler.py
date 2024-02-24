@@ -2,6 +2,7 @@ import os
 import sys
 import logging
 import yaml
+from datetime import datetime
 
 from supabase import create_client, Client
 
@@ -13,14 +14,20 @@ class SupabaseConfig:
         self.config = None
         self.supabase_url = None
         self.supabase_key = None
-        self.supabase_table = None
+        self.supabase_table_news = None
+        self.supabase_table_users = None
+        self.supabase_table_sessions = None
+        self.supabase_table_messages = None
         self.load_config(yaml_path)
 
     def load_config(self, yaml_path):
         self.config = self.load_yaml(yaml_path)
         self.supabase_url = self.config["supabase"]["supabase_url"]
         self.supabase_key = self.config["supabase"]["supabase_key"]
-        self.supabase_table = self.config["supabase"]["supabase_table"]
+        self.supabase_table_news = self.config["supabase"]["tables"]["news"]
+        self.supabase_table_users = self.config["supabase"]["tables"]["users"]
+        self.supabase_table_sessions = self.config["supabase"]["tables"]["sessions"]
+        self.supabase_table_messages = self.config["supabase"]["tables"]["messages"]
 
     def load_yaml(self, yaml_path):
         with open(yaml_path, "r") as f:
@@ -33,7 +40,11 @@ class SupabaseHandler:
         self.supabase_config = SupabaseConfig(yaml_path)
         self.supabase_url = self.supabase_config.supabase_url
         self.supabase_key = self.supabase_config.supabase_key
-        self.supabase_table = self.supabase_config.supabase_table
+        self.supabase_table_news = self.supabase_config.supabase_table_news
+        self.supabase_table_users = self.supabase_config.supabase_table_users
+        self.supabase_table_sessions = self.supabase_config.supabase_table_sessions
+        self.supabase_table_messages = self.supabase_config.supabase_table_messages
+
         self.client: Client = create_client(self.supabase_url, self.supabase_key)
 
     def save_news_to_supabase(self, news_document):
@@ -42,7 +53,7 @@ class SupabaseHandler:
 
         try:
             existing_record = (
-                self.client.table(self.supabase_table)
+                self.client.table(self.supabase_table_news)
                 .select("*")
                 .eq("url", news_item["url"])
                 .execute()
@@ -50,7 +61,7 @@ class SupabaseHandler:
             if existing_record.data:
                 # 기존 레코드 업데이트
                 response = (
-                    self.client.table(self.supabase_table)
+                    self.client.table(self.supabase_table_news)
                     .update(news_item)
                     .eq("url", news_item["url"])
                     .execute()
@@ -58,7 +69,9 @@ class SupabaseHandler:
             else:
                 # 새 레코드 삽입
                 response = (
-                    self.client.table(self.supabase_table).insert(news_item).execute()
+                    self.client.table(self.supabase_table_news)
+                    .insert(news_item)
+                    .execute()
                 )
             if hasattr(response, "error") and response.error:
                 logging.error(f"Error saving data: {response.error.message}")
@@ -66,10 +79,10 @@ class SupabaseHandler:
         except Exception as e:
             logging.error("An error occurred while saving to Supabase: %s", e)
 
-    def get_data_from_supabase(self):
+    def get_news_data_from_supabase(self):
         try:
             existing_record = (
-                self.client.table(self.supabase_table)
+                self.client.table(self.supabase_table_news)
                 .select("*")
                 .eq("is_indexed", False)  # 인덱싱되지 않은 데이터만 가져오기
                 .execute()
@@ -83,10 +96,10 @@ class SupabaseHandler:
             logging.error("Supabase data load 실패: %s", e)
             return False
 
-    def update_db_index_status(self, data):
+    def update_news_db_index_status(self, data):
         try:
             response = (
-                self.client.table(self.supabase_table)
+                self.client.table(self.supabase_table_news)
                 .update({"is_indexed": True})
                 .eq("url", data.url)
                 .execute()
@@ -96,11 +109,11 @@ class SupabaseHandler:
             logging.error("An error occurred while updating Supabase: %s", e)
             return False
 
-    def reset_db_index_status(self):
+    def reset_news_db_index_status(self):
         try:
             # Supabase 테이블의 모든 아이템에 대해 is_indexed 값을 False로 설정
             response = (
-                self.client.table(self.supabase_table)
+                self.client.table(self.supabase_table_news)
                 .update({"is_indexed": False})
                 .eq("is_indexed", True)
                 .execute()  # 특정 조건 없이 모든 레코드에 대해 실행
@@ -133,6 +146,47 @@ class SupabaseHandler:
             documents.append(document)
         return documents
 
+    def check_or_create_user_session(self, user_id, session_id):
+        # 사용자 존재 여부 확인
+        user_response = (
+            self.client.table(self.supabase_table_users)
+            .select("user_id")
+            .eq("user_id", user_id)
+            .execute()
+        )
+        if not user_response.data:
+            # 사용자가 존재하지 않으면 생성
+            self.client.table(self.supabase_table_users).insert(
+                {"user_id": user_id}
+            ).execute()
+
+        # 세션 존재 여부 확인
+        session_response = (
+            self.client.table(self.supabase_table_sessions)
+            .select("session_id")
+            .eq("session_id", session_id)
+            .execute()
+        )
+        if not session_response.data:
+            # 세션이 존재하지 않으면 생성
+            self.client.table(self.supabase_table_sessions).insert(
+                {
+                    "session_id": session_id,
+                    "user_id": user_id,
+                    "created_at": datetime.now().isoformat(),
+                }
+            ).execute()
+
+    def save_message(self, session_id, text, sender):
+        # 메시지 정보를 DB에 저장
+        message_data = {
+            "session_id": session_id,
+            "text": text,
+            "sender": sender,
+            "created_at": datetime.utcnow().isoformat(),
+        }
+        self.client.table(self.supabase_table_messages).insert(message_data).execute()
+
 
 def main():
 
@@ -140,7 +194,7 @@ def main():
     supabase_handler = SupabaseHandler()
 
     # 데이터 가져오기
-    data = supabase_handler.get_data_from_supabase()
+    data = supabase_handler.get_news_data_from_supabase()
 
     # 데이터를 NewsDocuments 객체로 변환
     news_documents = supabase_handler.data_to_news_documents(data)
