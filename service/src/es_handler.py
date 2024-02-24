@@ -105,7 +105,14 @@ class ElasticSearchHandler:
 
         try:
             response = self.es.search(index="news", body=search_body)
-            return response
+            combined_search_text = self.combine_search_results(response)
+            return combined_search_text
         except Exception as e:
             logging.error(f"elasticsearch 데이터 검색 실패, {e}")
             return False
+
+    def combine_search_results(self, search_results):
+        combined_text = "\n".join(
+            [hit["_source"]["text"] for hit in search_results["hits"]["hits"]]
+        )
+        return combined_text

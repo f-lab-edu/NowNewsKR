@@ -38,15 +38,11 @@ def handle_query():
     user_query_vector = embedding_model.get_embedding_vector(user_query)
     search_results = es_handler.search_data_in_elasticsearch(user_query_vector, 3, 1.4)
 
-    combined_text = "\n".join(
-        [hit["_source"]["text"] for hit in search_results["hits"]["hits"]]
-    )
-
     # TODO: supabase에 결과 저장
     # 결과를 Supabase에 저장하는 예시 코드 (실제 구현에 따라 변경 필요)
     # supabase_handler.save_query_response(user_id, session_id, user_query, answer)
 
-    answer = llm_model.ask(user_query, combined_text)
+    answer = llm_model.ask(user_query, search_results)
     # 임시 응답 반환 (실제 구현에 맞게 수정 필요)
     response = {
         "user_id": user_id,

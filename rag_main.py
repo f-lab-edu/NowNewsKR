@@ -84,12 +84,9 @@ def main():
 
     search_results = rag_app.search_newsdocuments(user_query, 3, 1.4)
 
-    combined_text = "\n".join(
-        [hit["_source"]["text"] for hit in search_results["hits"]["hits"]]
-    )
-    print(f"Combined Text:\n{combined_text}")
+    print(f"Combined search Text:\n{search_results}")
 
-    answer = rag_app.generate_answer(user_query, context=combined_text)
+    answer = rag_app.generate_answer(user_query, context=search_results)
     print(f"Answer: {answer}")
 
     """성능 테스트
