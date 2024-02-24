@@ -1,0 +1,23 @@
+version: '3'
+services:
+  web:
+    build: .  # Dockerfile이 프로젝트 루트에 위치
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./service/src:/app  # 프로젝트 소스 코드를 컨테이너에 반영
+    command: python src/app.py  # Flask 앱 실행 명령 수정
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false  # ElasticSearch 8.x에서 보안 설정 변경
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m  # JVM 메모리 사용량 설정 예시
+    ports:
+      - "9200:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data  # 데이터 지속성을 위한 볼륨
+volumes:
+  esdata:
+    driver: local
