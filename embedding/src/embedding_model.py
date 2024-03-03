@@ -42,20 +42,6 @@ class EmbeddingModel:
         input_max_length = tokenizer.model_max_length
         return model, tokenizer, input_max_length
 
-    # def chunked_text(self, prompt_text, text, chunk_size):
-    #     chunked_texts = []
-    #     overlap = int(chunk_size * self.config["overlap_ratio"])
-
-    #     i = 0
-    #     while i < len(text):
-    #         chunk = prompt_text + text[i : i + chunk_size]
-    #         chunked_texts.append(chunk)
-    #         if len(chunk) < chunk_size:
-    #             break
-    #         i += chunk_size - overlap
-
-    #     return chunked_texts
-
     def get_embedding_vector(self, text):
         try:
             inputs = self.tokenizer(

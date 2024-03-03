@@ -73,6 +73,7 @@ class SupabaseHandler:
                     .insert(news_item)
                     .execute()
                 )
+
             if hasattr(response, "error") and response.error:
                 logging.error(f"Error saving data: {response.error.message}")
 
@@ -132,6 +133,7 @@ class SupabaseHandler:
         documents = []
         for item in data:
             document = NewsDocuments(
+                id=item.get("id"),
                 url=item.get("url"),
                 topic=item.get("topic"),
                 title=item.get("title"),
@@ -177,12 +179,14 @@ class SupabaseHandler:
                 }
             ).execute()
 
-    def save_message(self, session_id, text, sender):
+    def save_message(self, session_id, text, sender, original_db_ids, es_document_ids):
         # 메시지 정보를 DB에 저장
         message_data = {
             "session_id": session_id,
             "text": text,
             "sender": sender,
+            "es_document_id": es_document_ids,
+            "original_db_id": original_db_ids,
             "created_at": datetime.utcnow().isoformat(),
         }
         self.client.table(self.supabase_table_messages).insert(message_data).execute()

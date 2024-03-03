@@ -21,6 +21,7 @@ class ESIndexer:
         self.es = None
         self.embedding_model = embedding_model
         self.load_configuration(yaml_path)
+        self.create_es_index()
 
     def load_configuration(self, yaml_path):
         self.config = self.load_yaml(yaml_path)
@@ -31,6 +32,47 @@ class ESIndexer:
         with open(yaml_path, "r") as f:
             config = yaml.load(f, Loader=yaml.FullLoader)
         return config
+
+    def create_es_index(self):
+        index_name = "news"  # 인덱스 이름 변경 가능
+        index_settings = {
+            "settings": {
+                "number_of_shards": 1,  # 샤드 수는 요구 사항에 따라 조정
+                "number_of_replicas": 0,  # 복제본 수는 요구 사항에 따라 조정
+            },
+            "mappings": {
+                "properties": {
+                    "db_id": {"type": "long"},  # 원본 DB의 int8 ID를 위한 매핑
+                    "topic": {
+                        "type": "keyword"
+                    },  # 주제는 필터링에 사용될 수 있으므로 keyword 타입 사용
+                    "title": {
+                        "type": "text"
+                    },  # 제목은 텍스트 검색에 사용될 수 있으므로 text 타입 사용
+                    "summary": {
+                        "type": "text"
+                    },  # 요약은 텍스트 검색에 사용될 수 있으므로 text 타입 사용
+                    "press": {"type": "keyword"},  # 출판사는 keyword 타입 사용
+                    "date": {
+                        "type": "date",  # 날짜 필드 유형을 명시
+                        "format": "yyyy-MM-dd'T'HH:mm:ss",  # 이 필드에 대한 날짜 형식을 지정
+                    },
+                    "text": {"type": "text"},  # 텍스트 검색을 위한 text 타입 사용
+                    "embedding": {
+                        "type": "dense_vector",
+                        "dims": 768,
+                    },  # 임베딩 벡터는 dense_vector 타입 사용
+                }
+            },
+        }
+
+        # 인덱스가 이미 존재하는지 확인
+        if not self.es.indices.exists(index=index_name):
+            # 인덱스 생성
+            self.es.indices.create(index=index_name, body=index_settings)
+            logging.info(f"{index_name} 인덱스 생성 완료.")
+        else:
+            logging.info(f"{index_name} 인덱스는 이미 존재합니다.")
 
     def chunked_text(self, prompt_text, text, chunk_size):
         chunked_texts = []
@@ -66,6 +108,7 @@ class ESIndexer:
                 return False
 
             body = {
+                "db_id": data.id,
                 "topic": data.topic,
                 "title": data.title,
                 "summary": data.summary,
@@ -111,7 +154,6 @@ if __name__ == "__main__":
     # 데이터를 NewsDocuments 객체로 변환
     news_documents = supabase_handler.data_to_news_documents(news_db)
     es_indexer = ESIndexer(embedding_model)
-
     # 반환된 데이터 사용
     for news_doc in news_documents:
         logging.info(news_doc)
@@ -128,4 +170,4 @@ if __name__ == "__main__":
 
     # indexed data 삭제
     # es_indexer.delete_news_index()
-    # supabase_handler.reset_db_index_status()
+    # supabase_handler.reset_news_db_index_status()

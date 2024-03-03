@@ -34,7 +34,9 @@ class NewsDocuments:
         journalist,
         date,
         is_indexed,
+        id=None,
     ):
+        self.id = id
         self.url = url
         self.topic = topic
         self.title = title
@@ -47,10 +49,10 @@ class NewsDocuments:
         self.is_indexed = is_indexed
 
     def __repr__(self):
-        return f"NewsDocuments({self.url}, {self.topic}, {self.title}, {self.status}, {self.content}, {self.summary}, {self.press}, {self.journalist}, {self.date}, {self.is_indexed})"
+        return f"NewsDocuments({self.id}, {self.url}, {self.topic}, {self.title}, {self.status}, {self.content}, {self.summary}, {self.press}, {self.journalist}, {self.date}, {self.is_indexed})"
 
     def to_superbase_format(self):
-        return {
+        data = {
             "url": self.url,
             "topic": self.topic,
             "title": self.title,
@@ -62,3 +64,6 @@ class NewsDocuments:
             "date": self.date,
             "is_indexed": self.is_indexed,
         }
+        if self.id is not None:
+            data["id"] = self.id
+        return data
