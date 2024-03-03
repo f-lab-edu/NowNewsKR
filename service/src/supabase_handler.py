@@ -191,6 +191,22 @@ class SupabaseHandler:
         }
         self.client.table(self.supabase_table_messages).insert(message_data).execute()
 
+    def get_last_user_interactions(self, session_id, limit=3):
+        # 세션 ID에 해당하는 마지막 몇 번의 질문과 대답을 가져옴
+        response = (
+            self.client.table(self.supabase_table_messages)
+            .select("*")
+            .eq("session_id", session_id)
+            .order("created_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+
+        if response.data:
+            return response.data
+        else:
+            return []
+
 
 def main():
 

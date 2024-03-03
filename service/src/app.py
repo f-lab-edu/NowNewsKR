@@ -56,7 +56,10 @@ class QueryApp:
             )
         )
         self.supabase_handler.check_or_create_user_session(user_id, session_id)
-        answer = self.llm_model.ask(user_query, search_documents)
+
+        last_interactions = self.supabase_handler.get_last_user_interactions(session_id)
+
+        answer = self.llm_model.ask(user_query, search_documents, last_interactions)
 
         self.supabase_handler.save_message(
             session_id, user_query, "user", original_db_ids, es_document_ids

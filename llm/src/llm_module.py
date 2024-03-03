@@ -48,13 +48,6 @@ class LLMModule:
 
     def load_model(self):
         # TODO: 모델 로드 및 토크나이저 설정
-        """
-        model = AutoModelForCausalLM.from_pretrained(
-            self.config["llm_path"], device_map=self.device
-        )
-        model = AutoModelForCausalLM.from_pretrained(
-            self.config["llm_path"], device_map=self.device
-        )"""
 
         model = AutoModelForCausalLM.from_pretrained(
             self.config["llm"]["model_path"],
@@ -67,12 +60,35 @@ class LLMModule:
         return model, tokenizer
 
     # TODO: 프롬프트 엔지니어링(프롬프트 추가, 영어 테스트), indicator 포맷 변경(영어로 변경), input 청크
-    def ask(self, question, context="", max_new_tokens=512, temperature=0.7, top_p=0.9):
+    def ask(
+        self,
+        question,
+        context,
+        last_interactions,
+        max_new_tokens=512,
+        temperature=0.7,
+        top_p=0.9,
+    ):
+
+        # 이전 대화 내용을 프롬프트에 포함
+        previous_context = " ".join(
+            [
+                f"Question: {interaction['text']} Answer: {interaction['answer']}"
+                for interaction in last_interactions
+            ]
+        )
+
         # 질문과 맥락을 결합하여 입력 텍스트 생성
         prompt = (
-            f"질문: {question}\n\n맥락: {context}\n\n답변:"
-            if context
-            else f"질문: {question}\n\n답변:"
+            # "Let's consider our previous conversations: "
+            # f"{previous_context} "
+            "Now, moving on to the user's current question: "
+            f"'{question}'. "
+            f"{'Considering the provided context: ' + context + ', ' if context else ''}"
+            "please provide an answer to the question. "
+            "If the question is about summarizing an article, let's break down the information into a few key points, like bullet points, to make it easy to understand. "
+            "If the question relates to advice or opinion, imagine you're a consultant or a friend giving thoughtful advice based on your knowledge and the information provided. "
+            "Note: The response is expected to be in Korean if the user's question is in Korean."
         )
         if self.use_openai:
             answer = self.ask_openai(prompt, max_new_tokens, temperature, top_p)
@@ -98,9 +114,9 @@ class LLMModule:
     def ask_openai(
         self,
         prompt,
-        max_new_tokens=512,
-        temperature=0.7,
-        top_p=0.9,
+        max_new_tokens,
+        temperature,
+        top_p,
     ):
 
         # GPT API를 사용하여 텍스트 생성
