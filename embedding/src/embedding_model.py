@@ -11,8 +11,8 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_dir = os.path.join(current_dir, "..", "..")
-service_src_path = os.path.join(project_dir, "service", "src")
-sys.path.append(os.path.join(project_dir, service_src_path))
+common_src_path = os.path.join(project_dir, "common", "src")
+sys.path.append(os.path.join(project_dir, common_src_path))
 
 from config import Config
 

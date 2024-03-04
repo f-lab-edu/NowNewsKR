@@ -4,25 +4,33 @@ import sys
 import json
 import uuid
 import yaml
-from apscheduler.schedulers.background import BackgroundScheduler
 
-from config import Config
-from supabase_handler import SupabaseHandler
+# from apscheduler.schedulers.background import BackgroundScheduler
+
 from es_handler import ElasticSearchHandler
-from crawler import NaverNewsCrawler, Topic
-from es_indexer import ESIndexer
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_dir = os.path.join(current_dir, "..", "..")
+
+common_src_path = os.path.join(project_dir, "common", "src")
+sys.path.append(os.path.join(project_dir, common_src_path))
+
 emb_src_path = os.path.join(project_dir, "embedding", "src")
-llm_src_path = os.path.join(project_dir, "llm", "src")
 sys.path.append(os.path.join(project_dir, emb_src_path))
+
+llm_src_path = os.path.join(project_dir, "llm", "src")
 sys.path.append(os.path.join(project_dir, llm_src_path))
 
+crawler_src_path = os.path.join(project_dir, "crawler", "src")
+sys.path.append(os.path.join(project_dir, crawler_src_path))
+
+
+from config import Config
+from supabase_handler import SupabaseHandler
 
 from embedding_model import EmbeddingModel
-from llm_module import LLMModule
 
+from llm_module import LLMModule
 
 app = Flask(__name__)
 
@@ -36,11 +44,12 @@ class QueryApp:
         es_handler,
         yaml_path=Config.YAML_PATH,
     ):
-        self.config = self.load_configuration_from_yaml(yaml_path)
+
         self.embedding_model = embedding_model
         self.llm_model = llm_model
         self.supabase_handler = supabase_handler
         self.es_handler = es_handler
+        self.config = self.load_configuration_from_yaml(yaml_path)
 
     @staticmethod
     def load_configuration_from_yaml(yaml_path):
@@ -73,16 +82,9 @@ class QueryApp:
             "session_id": session_id,
             "user_query": user_query,
             "answer": answer,
+            "original_db_ids": original_db_ids,
+            "es_document_ids": es_document_ids,
         }
-
-
-embedding_model = EmbeddingModel()
-llm_model = LLMModule()
-supabase_handler = SupabaseHandler()
-es_handler = ElasticSearchHandler()
-es_indexer = ESIndexer(embedding_model)
-
-query_app = QueryApp(embedding_model, llm_model, supabase_handler, es_handler)
 
 
 @app.route("/query", methods=["POST"])
@@ -97,42 +99,19 @@ def query_endpoint():
     return json.dumps(response, ensure_ascii=False)
 
 
-def crawl_news():
-    # 모든 주제에 대해 크롤링을 수행합니다.
-    for topic in Topic:
-        crawler = NaverNewsCrawler(
-            topic=topic,
-            url=Config.STOCK_URL,
-            supabase_handler=supabase_handler,
-        )
-        crawler.crawl()
+def create_app():
+    embedding_model = EmbeddingModel()
+    llm_model = LLMModule()
+    supabase_handler = SupabaseHandler()
+    es_handler = ElasticSearchHandler()
+
+    query_app = QueryApp(embedding_model, llm_model, supabase_handler, es_handler)
+    return query_app
 
 
-def index_news():
-    news_db = supabase_handler.get_news_data_from_supabase()
-    news_documents = supabase_handler.data_to_news_documents(news_db)
-
-    for news_doc in news_documents:
-        index_result = es_indexer.index_data_to_elasticsearch(news_doc)
-        if index_result:
-            news_doc.is_indexed = True
-            supabase_handler.update_news_db_index_status(news_doc)
-
-
-def schedule_tasks():
-    # 크롤랑,인덱싱 백그라운드로 주기적으로 실행합니다.
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(
-        crawl_news, "interval", hours=1
-    )  # Customize the interval as needed
-    scheduler.add_job(
-        index_news, "interval", hours=1
-    )  # Customize the interval as needed
-    scheduler.start()
-
+query_app = create_app()
 
 if __name__ == "__main__":
-    schedule_tasks()  # 크롤러 스케줄링 시작
     app.run(debug=True, host="0.0.0.0", port=8080)
 
 

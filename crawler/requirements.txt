@@ -1,0 +1,10 @@
+# python==3.11
+requests==2.31.0
+bs4==0.0.2
+APScheduler==3.10.4
+PyYAML==6.0.1
+supabase==2.3.4
+torch==2.2.0
+tokenizers==0.15.1
+transformers==4.37.2
+elasticsearch==8.12.0

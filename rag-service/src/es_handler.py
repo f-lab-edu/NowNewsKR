@@ -1,6 +1,14 @@
+import os
+import sys
 import yaml
 import logging
 from elasticsearch import Elasticsearch
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_dir = os.path.join(current_dir, "..", "..")
+
+common_src_path = os.path.join(project_dir, "common", "src")
+sys.path.append(os.path.join(project_dir, common_src_path))
 
 from config import Config
 

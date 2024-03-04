@@ -5,8 +5,8 @@ from embedding_model import EmbeddingModel
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_dir = os.path.join(current_dir, "..", "..")
-es_src_path = os.path.join(project_dir, "service", "src")
-sys.path.append(os.path.join(project_dir, es_src_path))
+common_src_path = os.path.join(project_dir, "common", "src")
+sys.path.append(os.path.join(project_dir, common_src_path))
 
 from es_handler import ElasticSearchHandler
 

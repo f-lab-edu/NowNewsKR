@@ -1,23 +1,48 @@
 version: '3'
 services:
-  web:
-    build: .  # Dockerfile이 프로젝트 루트에 위치
+  rag-service:
+    build:
+      context: .
+      dockerfile: rag-service/Dockerfile
     ports:
       - "8080:8080"
-    volumes:
-      - ./service/src:/app  # 프로젝트 소스 코드를 컨테이너에 반영
-    command: python src/app.py  # Flask 앱 실행 명령 수정
+    depends_on:
+      - elasticsearch
+      - supabase
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+
+  crawler:
+    build:
+      context: .
+      dockerfile: crawler/Dockerfile
+    depends_on:
+      - elasticsearch
+      - supabase
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
     environment:
       - discovery.type=single-node
-      - xpack.security.enabled=false  # ElasticSearch 8.x에서 보안 설정 변경
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m  # JVM 메모리 사용량 설정 예시
+      - xpack.security.enabled=false
     ports:
       - "9200:9200"
     volumes:
-      - esdata:/usr/share/elasticsearch/data  # 데이터 지속성을 위한 볼륨
+      - esdata:/usr/share/elasticsearch/data
+
+  supabase:
+    image: supabase/postgres:latest
+    environment:
+      - POSTGRES_PASSWORD=supabase
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
 volumes:
   esdata:
-    driver: local
+  pgdata:

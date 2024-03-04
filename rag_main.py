@@ -12,7 +12,7 @@ def configure_project_paths():
     # Add project directories to sys.path
     sys.path.append(os.path.join(project_dir, "llm/src"))
     sys.path.append(os.path.join(project_dir, "embedding/src"))
-    sys.path.append(os.path.join(project_dir, "service/src"))
+    sys.path.append(os.path.join(project_dir, "common/src"))
 
 
 configure_project_paths()

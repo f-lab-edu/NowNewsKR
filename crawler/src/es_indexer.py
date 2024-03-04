@@ -3,16 +3,24 @@ import os
 import sys
 import yaml
 
-from config import Config
-from supabase_handler import SupabaseConfig, SupabaseHandler
-from es_handler import ElasticSearchHandler
-
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_dir = os.path.join(current_dir, "..", "..")
+
 emb_src_path = os.path.join(project_dir, "embedding", "src")
 sys.path.append(os.path.join(project_dir, emb_src_path))
 
+common_src_path = os.path.join(project_dir, "common", "src")
+sys.path.append(os.path.join(project_dir, common_src_path))
+
+rag_src_path = os.path.join(project_dir, "rag-service", "src")
+sys.path.append(os.path.join(project_dir, rag_src_path))
+
+from config import Config, Topic, NewsDocuments
+from supabase_handler import SupabaseHandler
+
 from embedding_model import EmbeddingModel
+
+from es_handler import ElasticSearchHandler
 
 
 class ESIndexer:
