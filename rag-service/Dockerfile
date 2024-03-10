@@ -6,8 +6,6 @@ WORKDIR /app
 
 # 현재 디렉토리의 requirements.txt를 /app으로 복사
 COPY rag-service/requirements.txt ./
-
-# 필요한 패키지와 라이브러리 설치
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 프로젝트의 모든 파일을 /app으로 복사
@@ -22,4 +20,4 @@ COPY conf.yaml ./
 CMD ["python", "rag-service/src/app.py"]
 
 # root directory에서 다음 명령어 실행
-# docker build -f ./rag-service/Dockerfile -t rag-service:latest .
+# docker build -t rag-service:latest -f rag-service/Dockerfile .

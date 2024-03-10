@@ -1,0 +1,10 @@
+version: '3'
+services:
+  crawler:
+    image: crawler:latest
+    environment:
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY}
+      ELASTICSEARCH_URL: ${ELASTICSEARCH_URL}
+
+# docker-compose -f docker-compose-crawler.yml up -d
