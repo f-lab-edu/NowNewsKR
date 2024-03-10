@@ -38,7 +38,7 @@ class TestSupabaseHandler(TestCase):
             self.supabase_handler.supabase_key, "supabase_key is not set"
         )
         self.assertIsNotNone(
-            self.supabase_handler.supabase_table, "supabase_table is not set"
+            self.supabase_handler.supabase_table_news, "supabase_table is not set"
         )
 
         self.assertIsNotNone(self.supabase_handler.client, "client is not created")

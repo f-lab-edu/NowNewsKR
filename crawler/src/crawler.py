@@ -1,4 +1,6 @@
 import re
+import os
+import sys
 import logging
 from typing import Dict, Tuple
 from urllib.parse import urlparse, parse_qs
@@ -7,8 +9,14 @@ from urllib.parse import urlparse, parse_qs
 import requests
 from bs4 import BeautifulSoup
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_dir = os.path.join(current_dir, "..", "..")
+
+common_src_path = os.path.join(project_dir, "common", "src")
+sys.path.append(os.path.join(project_dir, common_src_path))
+
 from config import Config, Topic, NewsDocuments
-from supabase_handler import SupabaseConfig, SupabaseHandler
+from supabase_handler import SupabaseHandler
 
 
 class StringUtils:
@@ -106,11 +114,10 @@ class NaverNewsCrawler:
 
 def main() -> None:
     try:
-        supabase_config = SupabaseConfig(Config.YAML_PATH)
         # stock
         for topic in Topic:
             if topic == Topic.STOCK:
-                supabase_handler = SupabaseHandler(supabase_config)
+                supabase_handler = SupabaseHandler()
 
                 crawler = NaverNewsCrawler(topic, Config.STOCK_URL, supabase_handler)
 

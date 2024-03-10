@@ -1,0 +1,31 @@
+version: '3'
+services:
+  elasticsearch:
+    image: elasticsearch:8.12.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms2g -Xmx2g
+    ports:
+      - "9200:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    mem_limit: 3g
+
+  supabase:
+    image: supabase/postgres:latest
+    environment:
+      - POSTGRES_PASSWORD=supabase
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  esdata:
+  pgdata:
+
+
+# docker-compose -f docker-compose-db.yml up -d

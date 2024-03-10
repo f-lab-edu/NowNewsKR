@@ -1,7 +1,11 @@
 supabase:
   supabase_url: "https://sample_supabase_url.supabase.co"
   supabase_key: "sample_supabase_key"
-  supabase_table: "NewsHubDB"
+  tables:
+    news: "NewsHubDB"
+    users: "Users"
+    sessions: "Sessions"
+    messages: "Messages"
 
 elastic_search:
   es_username: "sample_username"
@@ -10,9 +14,15 @@ elastic_search:
   port: 9200
   scheme: "https"
 
-embedding_model: "embedding/models/BM-K_KoSimCSE-roberta"
-llm_path: "llm/models/yiko_model_4bit"
+embedding:
+  model_path: "embedding/models/BM-K_KoSimCSE-roberta"
+llm:
+  use_openai: true
+  model_path: "llama2" #"llm/models/yiko_model_4bit"
 overlap_ratio: 0.2
+
+openai:
+  api_key: "sk-"
 
 device:
   gpu: cuda:0
