@@ -1,6 +1,7 @@
 import logging
 import yaml
-from datetime import datetime
+from datetime import datetime, timedelta
+import pytz
 
 from supabase import create_client, Client
 
@@ -189,12 +190,16 @@ class SupabaseHandler:
         }
         self.client.table(self.supabase_table_messages).insert(message_data).execute()
 
-    def get_last_user_interactions(self, session_id, limit=3):
+    def get_last_user_interactions(self, session_id, limit=3, hours=1):
         # 세션 ID에 해당하는 마지막 몇 번의 질문과 대답을 가져옴
+        threshold_time = datetime.now(pytz.utc) - timedelta(hours=hours)
+
+        #  created_at 필드가 threshold_time 이후인 항목만 선택
         response = (
             self.client.table(self.supabase_table_messages)
             .select("*")
             .eq("session_id", session_id)
+            .gte("created_at", threshold_time.isoformat())
             .order("created_at", desc=True)
             .limit(limit)
             .execute()
